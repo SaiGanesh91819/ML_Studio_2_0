@@ -1,0 +1,628 @@
+/* Default Dark Theme */
+:root {
+  --bg-dark: #050505;
+  --primary: #8B00FF;
+  --secondary: #CCFF00;
+  --accent: #00F0FF;
+  --text-main: #ffffff;
+  --text-dim: #888888;
+  --glass: rgba(139, 0, 255, 0.05);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --card-bg: rgba(20, 20, 20, 0.6);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --hover-bg: rgba(255, 255, 255, 0.1);
+  --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  /* Liquid Background - Dark */
+  --grid-color: rgba(139, 0, 255, 0.03);
+  --glow-primary: rgba(139, 0, 255, 0.1);
+  --glow-secondary: rgba(0, 242, 255, 0.05);
+
+  /* Tech Ring - Dark */
+  --ring-stroke-1: rgba(139, 0, 255, 0.15);
+  --ring-stroke-2: rgba(139, 0, 255, 0.25);
+  --ring-metal-1: #333;
+  --ring-metal-2: #111;
+  --ring-center-bg: #000;
+  --nav-active-text: #fff;
+}
+
+[data-theme='light'] {
+  /* White & Blue-Violet Theme */
+  --bg-dark: #f0f4f8; /* Soft bluish white */
+  --primary: #6c5ce7; /* Blue-ish Violet */
+  --secondary: #00cec9; /* Teal accent */
+  --accent: #fd79a8; /* Pink accent */
+  --text-main: #2d3436;
+  --text-dim: #636e72;
+  --glass: rgba(108, 92, 231, 0.1);
+  --border-color: rgba(108, 92, 231, 0.15);
+  --card-bg: rgba(255, 255, 255, 0.9);
+  --input-bg: rgba(0, 0, 0, 0.03);
+  --hover-bg: rgba(0, 0, 0, 0.06);
+
+  /* Liquid Background - Light */
+  --grid-color: rgba(108, 92, 231, 0.03); 
+  --glow-primary: rgba(108, 92, 231, 0.08);
+  --glow-secondary: rgba(0, 206, 201, 0.06);
+
+  /* Tech Ring - Light */
+  --ring-stroke-1: rgba(108, 92, 231, 0.2);
+  --ring-stroke-2: rgba(108, 92, 231, 0.3);
+  --ring-metal-1: #e0e0e0;
+  --ring-metal-2: #c0c0c0;
+  --ring-center-bg: #ffffff;
+  --nav-active-text: #2d3436;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: var(--font-main);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* Hide scrollbars globally */
+* {
+  box-sizing: border-box;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+}
+
+.app-container {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.bg-grid {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-image: 
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: 50px 50px;
+  z-index: 1;
+  pointer-events: none;
+  transition: background-image 0.5s ease;
+}
+
+.bg-glow {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: radial-gradient(circle at 20% 50%, var(--glow-primary) 0%, transparent 50%),
+              radial-gradient(circle at 80% 50%, var(--glow-secondary) 0%, transparent 50%);
+  z-index: 2;
+  pointer-events: none;
+  transition: background 0.5s ease;
+}
+
+.main-layout {
+  display: flex;
+  width: 100%; height: 100%;
+  position: relative;
+  /* z-index: 10; removed to allow children to interleave with global overlay */
+}
+
+.left-navigation-section {
+  width: 35%;
+  min-width: 400px;
+  max-width: 500px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 40px 0;
+  position: relative;
+  overflow: visible;
+  z-index: 20;
+}
+
+/* Blur overlay for left section when active */
+.left-navigation-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+    background: rgba(0, 0, 0, 0);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Old separate overlays removed */
+/* Unified .focus-overlay handled in App.jsx and global styles */
+
+.nav-hitbox-proxy {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1200px; 
+    height: 1200px;
+    border-radius: 50%;
+    background: transparent;
+    z-index: -1;
+    pointer-events: none; /* Default: Ignore mouse so it doesn't auto-trigger */
+}
+
+/* Only activate the extended hitbox when the user is already interacting with the left section */
+.left-navigation-section:hover .nav-hitbox-proxy {
+    pointer-events: auto;
+}
+
+.app-logo {
+    position: relative;
+    margin-bottom: 50px;
+    margin-left: 60px;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.logo-brand {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+}
+
+.logo-ml {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 2.75rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #8B00FF 0%, #B84FFF 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.03em;
+}
+
+.logo-studio {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 2.75rem;
+    font-weight: 300;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+}
+
+.logo-tagline {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-left: 2px;
+}
+
+/* Active Module Indicator */
+.active-module-indicator {
+    position: relative;
+    margin-left: 60px;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 50;
+}
+
+.module-label {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.625rem;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.module-name {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--text-main) 0%, var(--text-dim) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.02em;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: fadeInModule 0.5s ease-out;
+}
+
+.module-underline {
+    width: 40px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+    border-radius: 2px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 8px rgba(139, 0, 255, 0.4);
+}
+
+.active-module-indicator:hover .module-underline {
+    width: 60px;
+}
+
+@keyframes fadeInModule {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tech-hud-wrapper {
+    position: relative;
+    width: 800px; height: 800px;
+    margin-left: -350px;
+    margin-top: 60px;
+    flex-shrink: 0;
+    z-index: 200;
+    pointer-events: none; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Optimized: Single drop-shadow instead of 4 chained heavy filters */
+    filter: drop-shadow(0 20px 50px rgba(139, 0, 255, 0.5));
+    will-change: filter;
+}
+
+.tech-ring-container {
+    position: absolute;
+    width: 100%; height: 100%;
+}
+
+.tech-svg {
+    width: 100%; height: 100%;
+    filter: drop-shadow(0 0 10px var(--primary));
+}
+
+.hud-center {
+    position: absolute;
+    z-index: 20;
+    pointer-events: auto;
+}
+
+.start-button {
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: var(--start-btn-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1.5px solid var(--start-btn-border);
+    color: var(--start-btn-text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    box-shadow: 
+        0 8px 32px var(--start-btn-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.start-button:hover {
+    transform: scale(1.05);
+    background: rgba(139, 0, 255, 0.2);
+    border-color: var(--primary);
+    box-shadow: 
+        0 12px 40px rgba(139, 0, 255, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.nav-layer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0; height: 0;
+    z-index: 15;
+}
+
+.nav-item {
+    position: absolute;
+    pointer-events: none; 
+    transform: rotate(var(--angle)) translate(var(--radius)) rotate(calc(var(--angle) * -1));
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    width: 400px;
+    transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.left-navigation-section:hover .nav-item,
+.left-navigation-section.active .nav-item {
+    pointer-events: auto;
+}
+
+.nav-connector {
+    width: 0px; height: 2px;
+    background: var(--text-dim);
+    transition: width 0.4s ease, opacity 0.4s ease;
+    opacity: 0;
+}
+
+.nav-hex {
+    width: 12px; height: 12px;
+    background: var(--bg-dark);
+    border: 2px solid var(--text-dim);
+    transform: rotate(45deg);
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+}
+
+.nav-text {
+    font-family: 'Audiowide', sans-serif;
+    font-size: 1.2rem;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    transition: all 0.3s;
+    opacity: 0; 
+    white-space: nowrap;
+}
+
+.left-navigation-section:hover .nav-connector,
+.left-navigation-section.active .nav-connector {
+    width: 40px;
+    opacity: var(--text-opacity);
+}
+
+.left-navigation-section:hover .nav-text,
+.left-navigation-section.active .nav-text {
+    opacity: var(--text-opacity);
+}
+
+.nav-item:hover .nav-connector, 
+.nav-item.active .nav-connector {
+    width: 80px;
+    background: var(--secondary);
+    box-shadow: 0 0 10px var(--secondary);
+}
+
+.nav-item:hover .nav-hex, 
+.nav-item.active .nav-hex {
+    background: var(--secondary);
+    border-color: var(--secondary);
+    transform: rotate(225deg);
+    box-shadow: 0 0 10px var(--secondary);
+}
+
+.nav-item.active .nav-text {
+    color: var(--nav-active-text);
+    font-size: 1.4rem;
+    text-shadow: 0 0 10px var(--primary);
+    transform: translateX(10px);
+}
+
+.left-navigation-section:not(:hover):not(.active) .nav-connector,
+.left-navigation-section:not(:hover):not(.active) .nav-text {
+    opacity: 0 !important;
+    width: 0 !important;
+}
+
+.content-viewport {
+    flex: 1; height: 100vh;
+    padding: 0; /* Remove padding from wrapper */
+    z-index: 5;
+    position: relative;
+    overflow: hidden; /* No scroll on wrapper */
+}
+
+/* Inner scroll container */
+.scroll-content {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 60px 40px 40px;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Vignette removed as per user request to fix gaps */
+.content-viewport::after {
+    display: none;
+}
+
+/* Blur overlay for right section when active */
+/* Unified Focus Overlay */
+.focus-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 15; /* Behind Nav controls (20) but above content/bg */
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+    background: rgba(0, 0, 0, 0);
+    pointer-events: none;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-container.nav-active .focus-overlay {
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    background: rgba(0, 0, 0, 0.2); /* Adjust for light mode via variables if needed */
+}
+
+[data-theme='light'] .app-container.nav-active .focus-overlay {
+    background: rgba(255, 255, 255, 0.3); /* White tint for light mode focus */
+}
+
+/* Apply transition to the scroll content for the slide effect */
+.left-navigation-section.active ~ .content-viewport .scroll-content,
+.left-navigation-section:hover ~ .content-viewport .scroll-content {
+    /* Optional: padding-left transition removed earlier to prevent lag,
+       but if we want to push content, we can do it here. 
+       Preserving existing behavior: */
+    padding-left: 100px;
+    transition: padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+}
+
+.glitch-text {
+    font-family: 'Audiowide', sans-serif;
+    font-size: 4rem;
+    color: transparent;
+    -webkit-text-stroke: 1px #fff;
+    margin: 0;
+}
+
+/* Constant mechanical rotation classes */
+.idle-spin-cw {
+    animation: gear-spin-right 60s linear infinite;
+}
+
+.idle-spin-ccw {
+    animation: gear-spin-left 45s linear infinite;
+}
+
+@keyframes gear-spin-right {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes gear-spin-left {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(-360deg);
+    }
+}
+
+/* Ensure the SVG itself doesn't have conflicting animations */
+.tech-svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 10px var(--primary));
+    /* Remove any previous 'spin' animations here if they exist */
+}
+
+.idle-spin-cw {
+    animation: rotate-right 60s linear infinite;
+}
+
+.idle-spin-ccw {
+    animation: rotate-left 45s linear infinite;
+}
+
+@keyframes rotate-right {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes rotate-left {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(-360deg);
+    }
+}
+
+.blink-text { animation: pulseText 2s infinite; }
+@keyframes pulseText { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+/* Global Animations for Launch */
+@keyframes shake {
+  0% { transform: translate(1px, 1px) rotate(0deg); }
+  10% { transform: translate(-1px, -2px) rotate(-1deg); }
+  20% { transform: translate(-3px, 0px) rotate(1deg); }
+  30% { transform: translate(3px, 2px) rotate(0deg); }
+  40% { transform: translate(1px, -1px) rotate(1deg); }
+  50% { transform: translate(-1px, 2px) rotate(-1deg); }
+  60% { transform: translate(-3px, 1px) rotate(0deg); }
+  70% { transform: translate(3px, 1px) rotate(-1deg); }
+  80% { transform: translate(-1px, -1px) rotate(1deg); }
+  90% { transform: translate(1px, 2px) rotate(0deg); }
+  100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+
+@keyframes spin-fast {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Sliding Window Animation */
+
+.app-container {
+    display: flex;
+    width: 200vw; /* Double width for two panels */
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+    /* Default position: Show first panel (Normal App) */
+    transform: translateX(0); 
+    transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1); /* Professional Ease-in-out */
+}
+
+/* 
+   State: Arena Visible 
+   Slide entire container left by 100vw, revealing the right panel 
+*/
+.app-container.show-arena {
+    transform: translateX(-100vw);
+}
+
+/* Layer 1: Main Application (Hub, Routes) */
+.main-view-layer {
+    width: 100vw;
+    height: 100vh;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Layer 2: ML Arena */
+.arena-view-layer {
+    width: 100vw;
+    height: 100vh;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Ensure CSS modules don't conflict */
+ 
+/* 
+   Cleanup old launch animations if they exist further down, 
+   but since we are replacing the end of file, this is fine. 
+*/

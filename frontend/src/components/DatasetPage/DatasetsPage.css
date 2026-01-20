@@ -1,0 +1,68 @@
+/* --- Liquid OS Shared Theme --- */
+
+/* 1. Layout Containers */
+.section-container {
+    padding: 32px;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--bg-dark);
+    color: var(--text-main);
+    position: relative;
+    /* Subtle ambient glow */
+    background-image: radial-gradient(circle at 10% 20%, rgba(139, 0, 255, 0.05) 0%, transparent 40%);
+}
+
+.full-page-table {
+    display: flex;
+    flex-direction: column;
+}
+
+/* 2. Headers & Actions */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 32px;
+    position: relative;
+    z-index: 2;
+}
+
+.section-header h1 {
+    font-size: 2.2rem;
+    margin: 0 0 8px 0;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--text-main) 60%, var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+/* ... skipped ... */
+/* 7. Settings & Form Elements */
+.settings-grid {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 32px;
+}
+
+/* 8. Utility Classes */
+.spin { animation: spin 2s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: var(--input-bg);
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+

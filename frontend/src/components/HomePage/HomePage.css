@@ -1,0 +1,403 @@
+/* HomePage Liquid OS Styling */
+
+.home-container {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+}
+
+/* Hero Section */
+.hero-section {
+    display: flex;
+    align-items: center;
+    min-height: 60vh;
+}
+
+.hero-content {
+    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--glass);
+    border: 1px solid var(--border-color);
+    border-radius: 100px;
+    width: fit-content;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--primary);
+    letter-spacing: 0.05em;
+    backdrop-filter: blur(10px);
+}
+
+.hero-title {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 4rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text-main);
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.gradient-text {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero-description {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 1.125rem;
+    line-height: 1.7;
+    color: var(--text-dim);
+    margin: 0;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.primary-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 100px;
+    color: #ffffff;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+        0 4px 20px rgba(139, 0, 255, 0.4),
+        0 0 0 1px rgba(139, 0, 255, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    letter-spacing: 0.02em;
+    position: relative;
+    overflow: hidden;
+}
+
+.primary-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 8px 30px var(--glow-primary),
+        0 0 0 1px rgba(139, 0, 255, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+}
+
+.secondary-btn {
+    padding: 16px 32px;
+    background: var(--input-bg);
+    border: 1.5px solid var(--border-color);
+    border-radius: 16px;
+    color: var(--text-main);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
+}
+
+.secondary-btn:hover {
+    background: var(--glass);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+/* Features Section */
+.features-section {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+}
+
+.section-header {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.section-title {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.section-subtitle {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 1.125rem;
+    color: var(--text-dim);
+    margin: 0;
+}
+
+/* Workflow Section */
+.workflow-section {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+}
+
+.workflow-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    position: relative;
+}
+
+.workflow-step {
+    position: relative;
+    padding: 40px 32px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 28px;
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow: hidden;
+}
+
+.workflow-step::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+}
+
+.workflow-step:hover {
+    transform: translateY(-8px);
+    background: var(--glass);
+    border-color: var(--hover-color, rgba(140, 0, 255, 0.158));
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.1), 0 0 20px var(--hover-color, rgba(140, 0, 255, 0.083));
+}
+
+.step-number {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    opacity: 0.3;
+}
+
+.step-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.workflow-step:hover .step-icon {
+    transform: scale(1.1);
+}
+
+.step-icon.purple {
+    background: rgba(139, 0, 255, 0.12);
+    border: 1.5px solid rgba(139, 0, 255, 0.3);
+    color: var(--primary);
+    box-shadow: 0 8px 24px rgba(139, 0, 255, 0.2);
+}
+
+.step-icon.lime {
+    background: rgba(204, 255, 0, 0.12);
+    border: 1.5px solid rgba(204, 255, 0, 0.061);
+    color: var(--secondary);
+    box-shadow: 0 8px 24px rgba(204, 255, 0, 0.064);
+}
+
+.step-icon.cyan {
+    background: rgba(0, 240, 255, 0.12);
+    border: 1.5px solid rgba(0, 238, 255, 0.101);
+    color: var(--accent);
+    box-shadow: 0 8px 24px rgba(0, 238, 255, 0.069);
+}
+
+.step-title {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 1.375rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.step-description {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--text-dim);
+    margin: 0;
+}
+
+.step-arrow {
+    position: absolute;
+    right: -16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--primary);
+    z-index: 10;
+}
+
+.workflow-step:last-child .step-arrow {
+    display: none;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+}
+
+.feature-card {
+    padding: 36px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.feature-card.glass {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+}
+
+.feature-card:hover {
+    transform: translateY(-6px);
+    background: var(--glass);
+    border-color: var(--primary);
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.1);
+}
+
+.feature-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+}
+
+.feature-icon.purple {
+    background: rgba(139, 0, 255, 0.15);
+    border: 1px solid rgba(139, 0, 255, 0.3);
+    color: var(--primary);
+}
+
+.feature-icon.lime {
+    background: rgba(204, 255, 0, 0.15);
+    border: 1px solid rgba(204, 255, 0, 0.3);
+    color: var(--secondary);
+}
+
+.feature-icon.cyan {
+    background: rgba(0, 240, 255, 0.15);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    color: var(--accent);
+}
+
+.feature-title {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.feature-description {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--text-dim);
+    margin: 0;
+}
+
+/* Stats Section */
+.stats-section {
+    padding: 60px 0;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 32px;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 32px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover {
+    background: var(--glass);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.stat-value {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 3rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--text-main) 0%, var(--text-dim) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+
