@@ -88,6 +88,14 @@ import pandas as pd
 import numpy as np
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder, OneHotEncoder, Normalizer
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.svm import SVR, SVC
+from sklearn.metrics import accuracy_score, mean_squared_error, r2_score, classification_report
+import joblib
+import io
+import os
 
 # ... imports ...
 
@@ -507,65 +515,131 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
         
         # Log config
         params = request.data.get('parameters', {})
+        dataset_id = request.data.get('dataset_id')
+        
         run.logs = f"[System] Initializing training environment...\n"
         run.logs += f"[Config] Train/Test Split: {params.get('train_split', 0.8)}\n"
         run.logs += f"[Config] Parameters: {json.dumps(params, indent=2)}\n"
         
         run.save()
         
-        # Start mock training in background thread
-        thread = threading.Thread(target=self._mock_training_process, args=(run.id,))
+        # Start actual training in background thread
+        thread = threading.Thread(target=self._run_training_process, args=(run.id, dataset_id, params))
         thread.daemon = True
         thread.start()
         
         return Response({"status": "Training started"})
 
-    def _mock_training_process(self, run_id):
-        """Simulates a training loop with log updates and metrics"""
-        # Small delay to detach from request
-        time.sleep(1)
-        
+    def _run_training_process(self, run_id, dataset_id, params):
+        """Executes actual model training using scikit-learn."""
         try:
             run = TrainingRun.objects.get(id=run_id)
-            model_name = run.experiment.model_type or "Custom Neural Network"
+            model_name = run.experiment.model_type or "linear_regression"
             run.logs += f"[System] Initializing training for {model_name}...\n"
-            run.logs += "[System] CUDA device detected: Tesla T4\n"
             run.logs += "[System] Loading dataset...\n"
             run.save()
-            time.sleep(1)
             
-            epochs = 5
-            accuracy = 0.5
-            loss = 2.0
+            # 1. Load Dataset
+            if not dataset_id:
+                raise ValueError("Dataset ID is required to train a model.")
+                
+            dataset = Dataset.objects.get(id=dataset_id)
+            df = pd.read_csv(dataset.file.path)
             
-            for epoch in range(1, epochs + 1):
-                time.sleep(1.5) # Simulate computation
-                
-                # Update metrics
-                loss = max(0.1, loss - random.uniform(0.1, 0.4))
-                accuracy = min(0.99, accuracy + random.uniform(0.05, 0.15))
-                
-                log_line = f"Epoch {epoch}/{epochs} - loss: {loss:.4f} - accuracy: {accuracy:.4f}\n"
-                
-                # Re-fetch to allow concurrent reads (simple approach)
-                run.refresh_from_db()
-                run.logs += log_line
-                run.metrics = {"loss": loss, "accuracy": accuracy, "epoch": epoch}
-                run.save()
+            target_col = params.get('target_column')
+            feature_cols = params.get('feature_columns', [])
+            train_split = float(params.get('train_split', 0.8))
             
-            # Completion
-            run.refresh_from_db()
+            if not target_col or target_col not in df.columns:
+                raise ValueError(f"Valid target column must be specified. Received: {target_col}")
+            if not feature_cols:
+                raise ValueError("Feature columns must be specified.")
+                
+            run.logs += f"[System] Target: {target_col}, Features: {len(feature_cols)}\n"
+            
+            # Simple automatic missing value handling for target & features
+            df = df.dropna(subset=[target_col])
+            # Ensure feature columns exist
+            feature_cols = [c for c in feature_cols if c in df.columns]
+            
+            X = df[feature_cols].copy()
+            y = df[target_col].copy()
+            
+            # Basic preprocessing (imputing and encoding)
+            run.logs += "[System] Preprocessing data (encoding and imputation)...\n"
+            run.save()
+            
+            # Extremely generic handling: label encode objects
+            for col in X.columns:
+                if str(X[col].dtype) == 'object' or str(X[col].dtype) == 'category':
+                    X[col] = LabelEncoder().fit_transform(X[col].astype(str))
+                else:
+                    X[col] = X[col].fillna(X[col].mean())
+            
+            # Target encode for classification
+            is_classification = model_name in ['logistic_regression', 'random_forest_classification', 'svc']
+            if is_classification and str(y.dtype) == 'object':
+                y = LabelEncoder().fit_transform(y.astype(str))
+                
+            X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=train_split, random_state=42)
+            
+            # 2. Initialize Model
+            run.logs += f"[System] Training model {model_name} with parameters...\n"
+            run.save()
+            
+            if model_name == 'linear_regression':
+                model = LinearRegression()
+            elif model_name == 'logistic_regression':
+                model = LogisticRegression(max_iter=1000)
+            elif model_name == 'random_forest':
+                n_ext = params.get('n_estimators', 100)
+                n_ext = int(n_ext) if n_ext else 100
+                m_dep = params.get('max_depth', None)
+                m_dep = int(m_dep) if m_dep else None
+                
+                if is_classification or len(np.unique(y)) < 20: 
+                    model = RandomForestClassifier(n_estimators=n_ext, max_depth=m_dep)
+                else:
+                    model = RandomForestRegressor(n_estimators=n_ext, max_depth=m_dep)
+            elif model_name == 'svc':
+                c_val = params.get('C', 1.0)
+                c_val = float(c_val) if c_val else 1.0
+                model = SVC(kernel=params.get('kernel', 'rbf'), C=c_val)
+            else:
+                raise ValueError(f"Model type '{model_name}' is not supported.")
+                
+            # 3. Train
+            model.fit(X_train, y_train)
+            run.logs += "[System] Training complete! Evaluating model...\n"
+            run.save()
+            
+            # 4. Evaluate
+            predictions = model.predict(X_test)
+            metrics = {}
+            if isinstance(model, (LogisticRegression, RandomForestClassifier, SVC)):
+                accuracy = accuracy_score(y_test, predictions)
+                metrics = {"accuracy": accuracy}
+                run.logs += f"[Metrics] Accuracy: {accuracy:.4f}\n"
+            else:
+                mse = mean_squared_error(y_test, predictions)
+                r2 = r2_score(y_test, predictions)
+                metrics = {"mse": mse, "r2": r2}
+                run.logs += f"[Metrics] MSE: {mse:.4f}, R2: {r2:.4f}\n"
+            
+            run.metrics = metrics
+            
+            # 5. Save model artifact
+            model_bytes = io.BytesIO()
+            joblib.dump(model, model_bytes)
+            model_bytes.seek(0)
+            run.model_file.save(f"model_{run.id}.pkl", ContentFile(model_bytes.read()))
+            
             run.status = 'Completed'
-            run.logs += "[System] Training finished successfully.\n"
             run.logs += "[System] Model saved to artifacts.\n"
-            
-            # Create dummy model file
-            dummy_content = b"Mock Model Binary Content"
-            run.model_file.save(f"model_{run.id}.pkl", ContentFile(dummy_content))
             run.save()
             
         except Exception as e:
-            print(f"Mock training failed: {e}")
+            print(f"Training failed: {e}")
             try:
                 run = TrainingRun.objects.get(id=run_id)
                 run.status = 'Failed'

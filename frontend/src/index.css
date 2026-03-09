@@ -25,6 +25,13 @@
   --ring-metal-2: #111;
   --ring-center-bg: #000;
   --nav-active-text: #fff;
+
+  /* Start Button - Dark */
+  --start-btn-bg: rgba(139, 0, 255, 0.1);
+  --start-btn-border: rgba(139, 0, 255, 0.3);
+  --start-btn-text: #ffffff;
+  --start-btn-shadow: rgba(139, 0, 255, 0.4);
+  --start-btn-glow: rgba(139, 0, 255, 0.6);
 }
 
 [data-theme='light'] {
@@ -53,6 +60,13 @@
   --ring-metal-2: #c0c0c0;
   --ring-center-bg: #ffffff;
   --nav-active-text: #2d3436;
+
+  /* Start Button - Light */
+  --start-btn-bg: rgba(108, 92, 231, 0.1);
+  --start-btn-border: rgba(108, 92, 231, 0.3);
+  --start-btn-text: #2d3436;
+  --start-btn-shadow: rgba(108, 92, 231, 0.3);
+  --start-btn-glow: rgba(108, 92, 231, 0.5);
 }
 
 body {
@@ -318,25 +332,37 @@ body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size: 0.9rem;
     font-weight: 600;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.2em;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex; 
     align-items: center; 
     justify-content: center;
     box-shadow: 
-        0 8px 32px var(--start-btn-shadow),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        0 0 20px var(--start-btn-shadow),
+        inset 0 0 15px var(--start-btn-shadow);
+    animation: button-glow 3s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .start-button:hover {
-    transform: scale(1.05);
+    transform: scale(1.1);
     background: rgba(139, 0, 255, 0.2);
     border-color: var(--primary);
     box-shadow: 
-        0 12px 40px rgba(139, 0, 255, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        0 0 40px var(--start-btn-glow),
+        inset 0 0 25px var(--start-btn-glow);
     color: #fff;
+}
+
+@keyframes button-glow {
+    0% {
+        box-shadow: 0 0 15px var(--start-btn-shadow), inset 0 0 10px var(--start-btn-shadow);
+        border-color: var(--start-btn-border);
+    }
+    100% {
+        box-shadow: 0 0 35px var(--start-btn-glow), inset 0 0 20px var(--start-btn-glow);
+        border-color: var(--primary);
+    }
 }
 
 .nav-layer {
@@ -558,8 +584,6 @@ body {
     }
 }
 
-.blink-text { animation: pulseText 2s infinite; }
-@keyframes pulseText { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 /* Global Animations for Launch */
 @keyframes shake {
@@ -622,7 +646,19 @@ body {
 
 /* Ensure CSS modules don't conflict */
  
-/* 
-   Cleanup old launch animations if they exist further down, 
-   but since we are replacing the end of file, this is fine. 
-*/
+/* Page Transition Animations */
+.page-transition-enter {
+    animation: smoothFadeSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    will-change: opacity, transform;
+}
+
+@keyframes smoothFadeSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

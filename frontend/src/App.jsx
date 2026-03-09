@@ -183,12 +183,15 @@ function AppContent() {
     };
 
     requestAnimationFrame(raf);
+    
+    // Scroll to top immediately on route change
+    lenis.scrollTo(0, { immediate: true });
 
     return () => {
       lenis.destroy();
       lenisRef.current = null;
     };
-  }, [location.pathname]); // Re-init on route change
+  }, [location.pathname]); // Re-init and scroll top on route change
 
   // Control Lenis based on Arena visibility
   useEffect(() => {
@@ -334,21 +337,22 @@ function AppContent() {
 
   return (
     <>
-        <Toaster position="top-center" theme="dark" richColors toastOptions={{ style: { zIndex: 9999 } }} />
+        <Toaster position="top-center" theme="dark" richColors closeButton toastOptions={{ style: { zIndex: 9999 } }} />
         {!isAuthenticated && <div style={{ position: 'fixed', width: '100vw', height: '100vh', zIndex: 10000 }}><LoginPage onLogin={handleLogin} /></div>}
         {isAuthenticated && showPreloader && <div style={{ position: 'fixed', width: '100vw', height: '100vh', zIndex: 10000 }}><Preloader onComplete={handlePreloaderComplete} /></div>}
 
-        {isAuthenticated && !showPreloader && (
-            <div style={{ position: 'fixed', top: '20px', right: '30px', zIndex: 2000 }}>
-                <ProfileHeader onLogout={() => setIsAuthenticated(false)} />
-            </div>
-        )}
+
 
         <div className={`app-container ${isArenaVisible ? 'show-arena' : ''} ${isNavActive ? 'nav-active' : ''}`}>
             {isAuthenticated && !showPreloader && (
             <>
                 {/* Layer 1: Main Application */}
                 <div className="main-view-layer">
+                    {isAuthenticated && !showPreloader && (
+                        <div style={{ position: 'absolute', top: '20px', right: '30px', zIndex: 2000 }}>
+                            <ProfileHeader onLogout={() => setIsAuthenticated(false)} />
+                        </div>
+                    )}
                     <div className="focus-overlay" />
                     <div className="bg-grid" />
                     <div className="bg-glow" />
@@ -381,7 +385,7 @@ function AppContent() {
                                  <TechRingSystem rotationOffset={rotationOffset} isHovering={isNavActive} />
                                  <div className="hud-center">
                                      <button className="start-button" onClick={handleStartClick}>
-                                        <span className="blink-text">START</span>
+                                        START
                                      </button>
                                  </div>
 
@@ -405,18 +409,19 @@ function AppContent() {
                         </aside>
                         <main className="content-viewport">
                             <div className="scroll-content">
-                                <Routes>
-                                    <Route path="/" element={<HomePage />} />
-                                    <Route path="/projects" element={<ProjectsPage />} />
-                                    <Route path="/projects/:projectId" element={<ProjectLauncher />} />
-                                    <Route path="/dashboard" element={<Dashboard />} />
-                                    <Route path="/datasets" element={<DatasetsPage />} />
-                                    <Route path="/models" element={<ModelsPage />} />
-                                    <Route path="/deployments" element={<DeploymentsPage />} />
-                                    <Route path="/settings" element={<SettingsPage />} />
-                                    {/* Route for arena removed as it is now an overlay */} 
-                                    <Route path="*" element={<Navigate to="/" replace />} />
-                                </Routes>
+                                <div key={location.pathname} className="page-transition-enter">
+                                    <Routes>
+                                        <Route path="/" element={<HomePage />} />
+                                        <Route path="/projects" element={<ProjectsPage />} />
+                                        <Route path="/projects/:projectId" element={<ProjectLauncher />} />
+                                        <Route path="/dashboard" element={<Dashboard />} />
+                                        <Route path="/datasets" element={<DatasetsPage />} />
+                                        <Route path="/models" element={<ModelsPage />} />
+                                        <Route path="/deployments" element={<DeploymentsPage />} />
+                                        <Route path="/settings" element={<SettingsPage />} />
+                                        <Route path="*" element={<Navigate to="/" replace />} />
+                                    </Routes>
+                                </div>
 
                                 <Footer />
                             </div>

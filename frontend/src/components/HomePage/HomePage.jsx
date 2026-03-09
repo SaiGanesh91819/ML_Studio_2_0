@@ -27,7 +27,7 @@ const HomePage = () => {
                             Enter the ML World
                         </button>
                         <button className="secondary-btn">
-                            View Examples
+                            Start Tutorial
                         </button>
                     </div>
                 </div>

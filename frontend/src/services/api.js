@@ -141,8 +141,8 @@ export const trainingService = {
     async createRun(experimentId) {
         return api.post('runs/', { experiment: experimentId });
     },
-    async startRun(runId) {
-        return api.post(`runs/${runId}/start/`);
+    async startRun(runId, data) {
+        return api.post(`runs/${runId}/start/`, data);
     },
     async getRun(runId) {
         return api.get(`runs/${runId}/`);

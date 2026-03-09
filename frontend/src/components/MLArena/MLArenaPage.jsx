@@ -56,6 +56,9 @@ const MLArenaPage = () => {
             else setModelConfig({}); 
         }
     }, [selectedAlgo]);
+    const [isLoadingBarActive, setIsLoadingBarActive] = useState(false);
+    const [isDatasetsOpen, setIsDatasetsOpen] = useState(true);
+    const [isModelsOpen, setIsModelsOpen] = useState(true);
     
     // --- UI State ---
     const [isTraining, setIsTraining] = useState(false);
@@ -94,6 +97,16 @@ const MLArenaPage = () => {
 
     useEffect(() => {
         if (activeProject) {
+            setDatasets([]);
+            setActiveDataset(null);
+            setStats(null);
+            setSelectedTask(null);
+            setSelectedProblem(null);
+            setSelectedAlgo(null);
+            setSelectedColumnForStats('');
+            setPreviewData([]);
+            setCorrelationData(null);
+            setLogs(["[System] Connecting to workspace interface..."]);
             loadDatasets();
         }
     }, [activeProject]);
@@ -148,12 +161,14 @@ const MLArenaPage = () => {
         setSelectedTask(null);
         setSelectedProblem(null);
         setSelectedAlgo(null);
+        setSelectedColumnForStats('');
         
-        if(dataset.statistics && Object.keys(dataset.statistics).length > 0) {
-             setStats(dataset.statistics);
+        if (dataset.statistics && Object.keys(dataset.statistics).length > 0) {
+            setStats(dataset.statistics);
         } else {
-             setStats(null);
+            setStats(null);
         }
+        
         setLastSaved(dataset.updated_at || null);
 
         try {
@@ -237,9 +252,11 @@ const MLArenaPage = () => {
         } catch (err) {
             console.error(err);
             addLog(`[ERROR] Preprocessing failed: ${err.message}`);
-            toast.error(`Preprocessing failed: ${err.message}`);
+            setLogs(prev => [...prev, `[ERROR] Processing failed: ${err.message}`]);
         } finally {
-            setIsProcessing(false);
+            setTimeout(() => {
+                setIsProcessing(false);
+            }, 1000); // Enforce minimum 1 sec loading visibility
         }
     };
 
@@ -273,11 +290,12 @@ const MLArenaPage = () => {
         try {
             const expRes = await experimentService.create({
                 project: activeProject.id,
-                name: `${selectedAlgo.name} Exp - ${new Date().toLocaleTimeString()}`,
+                name: `${selectedAlgo.name} - ${new Date().toLocaleTimeString()}`,
                 status: 'Running',
                 model_type: selectedAlgo.id 
             });
-            const runRes = await trainingService.startRun(expRes.data.id, {
+            const createRunRes = await trainingService.createRun(expRes.data.id);
+            const runRes = await trainingService.startRun(createRunRes.data.id, {
                 dataset_id: activeDataset.id,
                 parameters: { 
                     ...modelConfig, 
@@ -287,8 +305,8 @@ const MLArenaPage = () => {
                     feature_columns: featureCols
                 }
             });
-            setActiveRun(runRes.data);
-            startPolling(runRes.data.id);
+            setActiveRun(createRunRes.data);
+            startPolling(createRunRes.data.id);
         } catch (err) {
             setLogs(prev => [...prev, `[ERROR] Training failed: ${err.message}`]);
             setIsTraining(false);
@@ -567,7 +585,7 @@ const MLArenaPage = () => {
                             <span>{selectedAlgo.name}</span>
                         </div>
                         
-                        <div className="summary-details" style={{margin:'20px 0', textAlign:'left', background:'rgba(255,255,255,0.05)', padding:15, borderRadius:8}}>
+                        <div className="summary-details">
                             <p><strong>Split:</strong> {Math.round(trainSplit*100)}% Train / {Math.round((1-trainSplit)*100)}% Test</p>
                             <p><strong>Config:</strong></p>
                             <ul style={{paddingLeft:20, margin:0}}>
@@ -692,22 +710,22 @@ const MLArenaPage = () => {
 
     const handleRefreshStats = async () => {
         if (!activeDataset) return;
+        setIsLoadingBarActive(true);
+        addLog(`[INFO] Fetching properties and calculating statistics...`);
         try {
-            console.log("Requesting stats refresh...");
             const res = await datasetService.refreshStats(activeDataset.id);
-            console.log("Stats refresh response:", res);
              
             if (res.data) {
-                // Logs removed
-                if (!stats) setStats(res.data);
-                
-                // If we have stats but no selected column, select first
                 setStats(res.data);
-                addLog(`Stats refreshed for ${activeDataset.name}`);
+                addLog(`[SUCCESS] Stats generated for ${activeDataset.name}`);
             }
         } catch (err) {
             console.error(err);
-            addLog(`[ERROR] Failed to refresh stats: ${err.message}`);
+            addLog(`[ERROR] Failed to fetch properties: ${err.message}`);
+        } finally {
+            setTimeout(() => {
+                setIsLoadingBarActive(false);
+            }, 1000); // Enforce minimum 1 sec loading visibility
         }
     };
 
@@ -724,6 +742,7 @@ const MLArenaPage = () => {
 
     return (
         <div className="arena-container">
+            {(isLoadingBarActive || isTraining || isProcessing) && <div className="top-loading-bar"></div>}
             <header className="arena-menu-bar">
                 <div className="left">
                     <span className="menu-item" style={{color:'var(--accent)', fontWeight:'bold'}}>{activeProject.title}</span>
@@ -771,27 +790,30 @@ const MLArenaPage = () => {
                 }}
             >
                 {/* 1. Sidebar */}
-                <div className="ide-panel area-sidebar" style={{position:'relative'}}>
-                    <div className="panel-header">
-                        <h3><Database size={14} style={{marginRight:6, display:'inline'}}/> Datasets</h3>
+                <div className="ide-panel area-sidebar" style={{position:'relative', overflowY:'auto', display:'block'}}>
+                    <div className="panel-header" style={{cursor: 'pointer', display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10, background: 'rgba(10,10,15,0.95)'}} onClick={() => setIsDatasetsOpen(!isDatasetsOpen)}>
+                        <ChevronRight size={14} style={{transform: isDatasetsOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', marginRight: 6}} />
+                        <h3 style={{flex: 1, margin: 0, display: 'flex', alignItems: 'center'}}><Database size={14} style={{marginRight:6}}/> Datasets</h3>
                         <input 
                             type="file" 
                             ref={fileInputRef} 
                             style={{display:'none'}} 
                             onChange={handleFileUpload} 
                             accept=".csv,.json"
+                            onClick={(e) => e.stopPropagation()}
                         />
                         <button 
                             className="icon-btn" 
-                            onClick={() => fileInputRef.current.click()} 
+                            onClick={(e) => { e.stopPropagation(); fileInputRef.current.click(); }} 
                             style={{background: 'var(--accent)', color: '#000', padding: '4px 8px', borderRadius: 4, height: 24, display:'flex', alignItems:'center', gap:4}}
                             title="Upload Dataset"
                         >
                             <Upload size={12}/> <span style={{fontSize:'0.7rem', fontWeight:'bold'}}>Upload</span>
                         </button>
                     </div>
-                    <div className="panel-content">
-                        {datasets.length === 0 ? <div className="empty-state">No datasets loaded</div> : (
+                    {isDatasetsOpen && (
+                        <div className="panel-content" style={{flex: 'none', overflowY: 'visible', paddingBottom: 10}}>
+                            {datasets.length === 0 ? <div className="empty-state">No datasets loaded</div> : (
                             <ul className="file-list" style={{listStyle: 'none', padding: 0, margin: 0}}>
                                 {datasets.map(d => (
                                     <li 
@@ -836,8 +858,20 @@ const MLArenaPage = () => {
                                 ))}
                             </ul>
                         )}
+                        </div>
+                    )}
+                    {/* Models Trained Section */}
+                    <div className="panel-header" style={{borderTop:'1px solid rgba(255,255,255,0.05)', cursor: 'pointer', display: 'flex', alignItems: 'center', position: 'sticky', top: isDatasetsOpen ? 'auto' : 36, zIndex: 10, background: 'rgba(10,10,15,0.95)'}} onClick={() => setIsModelsOpen(!isModelsOpen)}>
+                        <ChevronRight size={14} style={{transform: isModelsOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', marginRight: 6}} />
+                        <h3 style={{margin: 0, display: 'flex', alignItems: 'center'}}><Layers size={14} style={{marginRight:6}}/> Models Trained</h3>
                     </div>
-                    <div className="resizer-v" onMouseDown={(e) => startResize(e, 'sidebar')} style={{right:-3, cursor: 'col-resize'}}></div>
+                    {isModelsOpen && (
+                        <div className="panel-content" style={{flex: 'none', overflowY: 'visible', paddingBottom: 10}}>
+                            <div className="empty-state">No models trained yet</div>
+                        </div>
+                    )}
+
+                    <div className="resizer-v" onMouseDown={(e) => startResize(e, 'sidebar')} style={{right:-3, cursor: 'col-resize', height: '100%', position: 'absolute', top: 0}}></div>
                 </div>
 
                 {/* 2. Main Canvas */}
@@ -858,61 +892,73 @@ const MLArenaPage = () => {
                     <div className="panel-content" style={{padding: '16px', flex:1, overflowY:'auto'}}>
                         {activeDataset ? (
                             <div className="props-group">
-                                <h4 style={{color:'var(--accent)'}}>Dataset Info</h4>
-                                <div className="prop-row"><span>Name:</span> <span>{activeDataset.name}</span></div>
-                                <div className="prop-row"><span>Rows:</span> <span>{activeDataset.row_count}</span></div>
-                                <div className="prop-row"><span>Size:</span> <span>{activeDataset.file_size || 'Unknown'}</span></div>
-                                <div style={{display:'flex', gap:8, marginTop:12}}>
-                                    <button className="secondary-btn" onClick={() => setShowDataSheet(true)} style={{flex:1}}>View Data Sheet</button>
-                                     {activeDataset.download_url && (
-                                        <a href={activeDataset.download_url} download className="secondary-btn" style={{display:'flex', alignItems:'center', justifyContent:'center', padding:'0 10px'}} title="Download Dataset">
-                                            <Download size={14}/>
-                                        </a>
-                                    )}
-                                </div>
-                                
-                                {stats && (
+                                <h4 style={{color:'var(--accent)'}}>{activeDataset.name}</h4>
+                                {!stats ? (
+                                    <div style={{marginTop: 20, textAlign: 'center'}}>
+                                        <p style={{color:'var(--text-dim)', fontSize:'0.85rem', marginBottom: 15}}>
+                                            Properties and statistics have not been loaded yet.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="prop-row"><span>Rows:</span> <span>{activeDataset.row_count}</span></div>
+                                        <div className="prop-row"><span>Size:</span> <span>{activeDataset.file_size || 'Unknown'}</span></div>
+                                        <div style={{display:'flex', gap:8, marginTop:12}}>
+                                            <button className="secondary-btn" onClick={() => setShowDataSheet(true)} style={{flex:1}}>View Data Sheet</button>
+                                             {activeDataset.download_url && (
+                                                <a href={activeDataset.download_url} download className="secondary-btn" style={{display:'flex', alignItems:'center', justifyContent:'center', padding:'0 10px'}} title="Download Dataset">
+                                                    <Download size={14}/>
+                                                </a>
+                                            )}
+                                        </div>
 
                                     <div style={{marginTop: 24}}>
                                         <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12, borderBottom:'1px solid rgba(255,255,255,0.1)', paddingBottom:4}}>
                                             <h4 style={{color:'var(--accent)', margin:0}}>Data Statistics</h4>
                                             <button 
-                                                onClick={handleRefreshStats}
-                                                style={{background:'none', border:'none', color:'var(--text-dim)', cursor:'pointer', padding:4}}
-                                                title="Refresh Stats & Logs to Console"
+                                                className="primary-btn"
+                                                style={{padding: '4px 12px', fontSize: '0.8rem'}}
+                                                onClick={handleRefreshStats} 
+                                                disabled={isLoadingBarActive}
                                             >
-                                                <Activity size={14} />
+                                                <Activity size={14} style={{marginRight: 4}} /> Fetch Properties
                                             </button>
                                         </div>
                                         
-                                        {/* 1. Dataset Overview */}
-                                        <div style={{marginBottom: 20}}>
-                                            <h5 style={{color:'var(--text-main)', marginBottom:8, fontSize:'0.9rem'}}>Dataset Overview</h5>
-                                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:12}}>
-                                                <div style={{background:'rgba(255,255,255,0.05)', padding:8, borderRadius:4}}>
-                                                    <div style={{fontSize:'0.7rem', opacity:0.7}}>Total Rows</div>
-                                                    <div style={{fontSize:'1.1rem', fontWeight:'bold'}}>{stats.dataset_stats?.total_rows || activeDataset.row_count}</div>
+                                        {!stats ? (
+                                             <div style={{color:'var(--text-dim)', fontSize:'0.85rem', textAlign: 'center', margin: '20px 0'}}>
+                                                 Click Fetch Properties to calculate column metrics and distributions.
+                                             </div>
+                                        ) : (
+                                        <>
+                                            {/* 1. Dataset Overview */}
+                                            <div style={{marginBottom: 20}}>
+                                                <h5 style={{color:'var(--text-main)', marginBottom:8, fontSize:'0.9rem'}}>Dataset Overview</h5>
+                                                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:12}}>
+                                                    <div style={{background:'rgba(255,255,255,0.05)', padding:8, borderRadius:4}}>
+                                                        <div style={{fontSize:'0.7rem', opacity:0.7}}>Total Rows</div>
+                                                        <div style={{fontSize:'1.1rem', fontWeight:'bold'}}>{stats.dataset_stats?.total_rows || activeDataset.row_count}</div>
+                                                    </div>
+                                                    <div style={{background:'rgba(255,255,255,0.05)', padding:8, borderRadius:4}}>
+                                                        <div style={{fontSize:'0.7rem', opacity:0.7}}>Total Columns</div>
+                                                        <div style={{fontSize:'1.1rem', fontWeight:'bold'}}>{stats.dataset_stats?.total_columns || Object.keys(stats).length}</div>
+                                                    </div>
                                                 </div>
-                                                <div style={{background:'rgba(255,255,255,0.05)', padding:8, borderRadius:4}}>
-                                                    <div style={{fontSize:'0.7rem', opacity:0.7}}>Total Columns</div>
-                                                    <div style={{fontSize:'1.1rem', fontWeight:'bold'}}>{stats.dataset_stats?.total_columns || Object.keys(stats).length}</div>
+                                                {/* Column Types List - Compact View */}
+                                                <div style={{fontSize:'0.8rem', color:'var(--text-dim)', maxHeight:'100px', overflowY:'auto', background:'rgba(0,0,0,0.2)', padding:8, borderRadius:4}}>
+                                                    <div style={{marginBottom:4, fontWeight:'bold', opacity:0.9}}>Column Data Types:</div>
+                                                    {Object.entries(stats).map(([col, data]) => {
+                                                        if (col === 'dataset_stats') return null;
+                                                        const colType = activeDataset?.columns?.find(c => c.name === col)?.type || 'Unknown';
+                                                        return (
+                                                            <div key={col} style={{display:'flex', justifyContent:'space-between', marginBottom:2}}>
+                                                                <span>{col}:</span>
+                                                                <span style={{color:'var(--accent)'}}>{colType}</span>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
-                                            {/* Column Types List - Compact View */}
-                                            <div style={{fontSize:'0.8rem', color:'var(--text-dim)', maxHeight:'100px', overflowY:'auto', background:'rgba(0,0,0,0.2)', padding:8, borderRadius:4}}>
-                                                <div style={{marginBottom:4, fontWeight:'bold', opacity:0.9}}>Column Data Types:</div>
-                                                {Object.entries(stats).map(([col, data]) => {
-                                                    if (col === 'dataset_stats') return null;
-                                                    const colType = activeDataset?.columns?.find(c => c.name === col)?.type || 'Unknown';
-                                                    return (
-                                                        <div key={col} style={{display:'flex', justifyContent:'space-between', marginBottom:2}}>
-                                                            <span>{col}:</span>
-                                                            <span style={{color:'var(--accent)'}}>{colType}</span>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
 
                                         {/* 2. Column Statistics */}
                                         <div>
@@ -1032,7 +1078,10 @@ const MLArenaPage = () => {
                                                 </div>
                                             )}
                                         </div>
+                                        </>
+                                        )}
                                     </div>
+                                    </>
                                 )}
 
                             </div>
