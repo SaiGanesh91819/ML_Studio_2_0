@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://127.0.0.1:8000/api/';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -28,7 +28,7 @@ export const authService = {
         if (response.data.access) {
             localStorage.setItem('access_token', response.data.access);
             localStorage.setItem('refresh_token', response.data.refresh);
-            localStorage.setItem('user', JSON.stringify({ username })); 
+            localStorage.setItem('user', JSON.stringify({ username }));
         }
         return response.data;
     },
@@ -74,7 +74,7 @@ export const projectService = {
             },
         });
     },
-    
+
     async getProjects() {
         return api.get('projects/');
     },
@@ -97,7 +97,7 @@ export const datasetService = {
         formData.append('file', file);
         formData.append('project', projectId);
         formData.append('name', file.name);
-        
+
         return api.post('datasets/', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
