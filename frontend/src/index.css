@@ -523,69 +523,29 @@ body {
 
 /* Constant mechanical rotation classes */
 .idle-spin-cw {
-    animation: gear-spin-right 60s linear infinite;
-}
-
-.idle-spin-ccw {
-    animation: gear-spin-left 45s linear infinite;
-    will-change: transform;
-}
-
-@keyframes gear-spin-right {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-@keyframes gear-spin-left {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(-360deg);
-    }
-}
-
-/* Ensure the SVG itself doesn't have conflicting animations */
-.tech-svg {
-    width: 100%;
-    height: 100%;
-    filter: drop-shadow(0 0 10px var(--primary));
-    /* Remove any previous 'spin' animations here if they exist */
-}
-
-.idle-spin-cw {
     animation: rotate-right 60s linear infinite;
+    transform-origin: center;
+    transform-box: fill-box;
+    will-change: transform;
 }
 
 .idle-spin-ccw {
     animation: rotate-left 45s linear infinite;
+    transform-origin: center;
+    transform-box: fill-box;
+    will-change: transform;
 }
 
 @keyframes rotate-right {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 @keyframes rotate-left {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(-360deg);
-    }
+    from { transform: rotate(0deg); }
+    to { transform: rotate(-360deg); }
 }
+
 
 
 /* Global Animations for Launch */

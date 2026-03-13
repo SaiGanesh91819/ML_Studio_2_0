@@ -1,0 +1,149 @@
+.shared-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 1000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: dialogFade 0.2s ease-out;
+}
+
+@keyframes dialogFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.shared-dialog-content {
+    background: #0d0d11;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    width: 90%;
+    max-width: 440px;
+    padding: 32px;
+    position: relative;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+    animation: dialogPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    overflow: hidden;
+}
+
+@keyframes dialogPop {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.shared-dialog-accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+}
+
+.shared-dialog-accent.info { background: #3b82f6; }
+.shared-dialog-accent.success { background: #10b981; }
+.shared-dialog-accent.warning { background: #f59e0b; }
+.shared-dialog-accent.danger { background: #ef4444; }
+
+.shared-dialog-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: transparent;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.shared-dialog-close:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+.shared-dialog-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 20px;
+    gap: 12px;
+}
+
+.shared-dialog-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shared-dialog-icon.info { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.shared-dialog-icon.success { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.shared-dialog-icon.warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.shared-dialog-icon.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+.shared-dialog-header h2 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+}
+
+.shared-dialog-body p {
+    color: #94a3b8;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    text-align: center;
+    margin: 0 0 28px 0;
+}
+
+.shared-dialog-footer {
+    display: flex;
+    gap: 12px;
+}
+
+.shared-dialog-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.shared-dialog-btn.secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.shared-dialog-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.shared-dialog-btn.primary {
+    color: #fff;
+}
+
+.shared-dialog-btn.primary.info { background: #3b82f6; }
+.shared-dialog-btn.primary.success { background: #10b981; }
+.shared-dialog-btn.primary.warning { background: #f59e0b; }
+.shared-dialog-btn.primary.danger { background: #ef4444; }
+
+.shared-dialog-btn.primary:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}

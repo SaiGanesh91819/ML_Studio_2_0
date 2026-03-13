@@ -47,7 +47,7 @@ class TrainingRunSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingRun
         fields = '__all__'
-        read_only_fields = ('experiment', 'started_at', 'completed_at', 'logs', 'metrics', 'model_file')
+        read_only_fields = ('started_at', 'completed_at', 'logs', 'metrics', 'model_file')
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

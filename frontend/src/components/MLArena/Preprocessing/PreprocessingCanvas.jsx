@@ -16,6 +16,7 @@ import ReactDOM from 'react-dom';
 import PreprocessingSidebar from './PreprocessingSidebar';
 import PreprocessingNode from './PreprocessingNode';
 import PreprocessingOptionModal from './PreprocessingOptionModal';
+import Dialog from '../../shared/Modal/Dialog';
 // import { toast } from 'sonner';
 
 const nodeTypes = {
@@ -28,6 +29,7 @@ const PreprocessingCanvas = ({ dataset, onClose, onRun, stats }) => {
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [reactFlowInstance, setReactFlowInstance] = useState(null);
     const [configuringNodeId, setConfiguringNodeId] = useState(null);
+    const [dialogConfig, setDialogConfig] = useState({ isOpen: false });
 
     // Initialize with Dataset Node
     useEffect(() => {
@@ -143,7 +145,12 @@ const PreprocessingCanvas = ({ dataset, onClose, onRun, stats }) => {
         }
         
         if (sortedSteps.length === 0) {
-            alert("Please connect at least one step to the dataset!");
+            setDialogConfig({
+                isOpen: true,
+                title: 'Empty Pipeline',
+                message: 'Please connect at least one preprocessing step to the dataset source before running!',
+                type: 'warning'
+            });
             return;
         }
 
@@ -162,19 +169,13 @@ const PreprocessingCanvas = ({ dataset, onClose, onRun, stats }) => {
                 border:'1px solid #333', borderRadius:'12px', overflow:'hidden',
                 display:'flex', flexDirection:'column', boxShadow:'0 20px 50px rgba(0,0,0,0.5)'
             }}>
-                {/* Header */}
                 <div className="canvas-header" style={{
-                    height: 60, borderBottom: '1px solid #333', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 20px', background:'#0a0a0a'
+                    height: 45, borderBottom: '1px solid #333', display:'flex', alignItems:'center', justifyContent:'flex-end', padding:'0 20px', background:'#0a0a0a'
                 }}>
-                    <div style={{display:'flex', alignItems:'center', gap:10}}>
-                        <Wand2 size={20} color="#8b5cf6"/>
-                        <h2 style={{fontSize:'1.2rem', margin:0, color:'#fff'}}>Preprocessing Pipeline</h2>
-                        <span style={{fontSize:'0.8rem', opacity:0.6, background:'#333', padding:'2px 8px', borderRadius:10}}>{dataset.name}</span>
-                    </div>
                     <div style={{display:'flex', gap:10}}>
-                         <button className="secondary-btn" onClick={onClose}>Cancel</button>
-                         <button className="primary-btn" onClick={handleRunPipeline} style={{background: 'var(--accent)', color:'#000', display:'flex', alignItems:'center', gap:6}}>
-                            <Play size={16} fill="#000"/> Run Pipeline
+                         <button className="secondary-btn" style={{padding:'4px 12px', fontSize:'0.75rem'}} onClick={onClose}>Discard</button>
+                         <button className="primary-btn" onClick={handleRunPipeline} style={{height:30, padding:'0 15px', fontSize:'0.75rem', background: 'var(--accent)', color:'#000', display:'flex', alignItems:'center', gap:6}}>
+                            <Play size={14} fill="#000"/> Run Pipeline
                          </button>
                     </div>
                 </div>
@@ -225,6 +226,11 @@ const PreprocessingCanvas = ({ dataset, onClose, onRun, stats }) => {
                         onSave={handleConfigSave}
                     />
                 )}
+                
+                <Dialog 
+                    {...dialogConfig}
+                    onClose={() => setDialogConfig({ isOpen: false })}
+                />
             </div>
         </div>
     );

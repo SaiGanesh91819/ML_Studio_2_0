@@ -21,8 +21,10 @@ class Project(models.Model):
     description = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Active')
     
-    # New Fields
     domain = models.CharField(max_length=50, choices=DOMAIN_CHOICES, default='Tabular')
+    
+    # Workspace Config
+    settings = models.JSONField(default=dict, blank=True) 
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

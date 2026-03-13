@@ -2,7 +2,7 @@
 .projects-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 60px 60px 0;
+    padding: 120px 60px 0;
     min-height: 100vh;
     animation: fadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -15,8 +15,8 @@
 .projects-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start; /* Changed to start for consistent top alignment */
-    margin-bottom: 40px;
+    align-items: flex-end; /* Align with bottom of text */
+    margin-bottom: 48px;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 24px;
 }
@@ -268,15 +268,15 @@
     position: absolute;
     top: 40px;
     right: 10px;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
+    background: #121218; /* More solid background */
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 16px;
     padding: 8px;
-    min-width: 160px;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    min-width: 170px;
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
     z-index: 999;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.8); /* Stronger shadow */
     animation: menuScale 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
     transform-origin: top right;
 }
@@ -469,4 +469,51 @@
 .btn-danger:hover {
     transform: scale(1.05);
     box-shadow: 0 12px 30px rgba(255, 71, 87, 0.4);
+}
+
+/* Specialty Cards */
+.create-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed var(--border-color) !important;
+    background: transparent !important;
+    min-height: 220px;
+    gap: 16px;
+}
+
+.create-card:hover {
+    border-color: var(--primary) !important;
+    background: var(--hover-bg) !important;
+}
+
+.create-card .plus-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--input-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.create-card:hover .plus-circle {
+    transform: rotate(90deg) scale(1.1);
+    background: var(--primary);
+    color: var(--bg-dark);
+}
+
+.create-card h3 {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin: 0;
+}
+
+.create-card:hover h3 {
+    color: var(--text-main);
 }

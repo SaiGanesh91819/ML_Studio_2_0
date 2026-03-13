@@ -22,6 +22,27 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+// Add response interceptor for 401s
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            
+            // Redirect to home (which will now show login)
+            if (window.location.pathname !== '/') {
+                window.location.href = '/'; 
+            } else {
+                // Already on home, just reload to clear state
+                window.location.reload();
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const authService = {
     async login(username, password) {
         const response = await api.post('auth/login/', { username, password });
@@ -85,6 +106,10 @@ export const projectService = {
 
     async updateProject(id, data) {
         return api.patch(`projects/${id}/`, data);
+    },
+
+    async getProject(id) {
+        return api.get(`projects/${id}/`);
     }
 };
 
@@ -134,6 +159,9 @@ export const experimentService = {
     },
     async update(id, data) {
         return api.patch(`experiments/${id}/`, data);
+    },
+    async delete(id) {
+        return api.delete(`experiments/${id}/`);
     }
 };
 

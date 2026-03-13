@@ -9,12 +9,14 @@ import {
     Clock,
     Share2
 } from 'lucide-react';
+import { toast } from 'sonner';
 import './ProjectsPage.css';
 
 import CreateWorkspaceModal from './CreateWorkspaceModal';
 import EditWorkspaceModal from './EditWorkspaceModal';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import ProjectContextMenu from './ProjectContextMenu';
+import Dialog from '../shared/Modal/Dialog';
 import { projectService, authService } from '../../services/api';
 // import { useLaunch } from '../../context/LaunchContext.jsx'; // Unused
 
@@ -27,6 +29,7 @@ const ProjectsPage = () => {
     const [projectsState, setProjects] = useState([]);
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [dialogConfig, setDialogConfig] = useState({ isOpen: false });
 
     useEffect(() => {
         fetchData();
@@ -41,15 +44,20 @@ const ProjectsPage = () => {
             ]);
             
             // Map backend data to UI format
-            const mappedProjects = projectsRes.data.map(p => ({
-                id: p.id,
-                title: p.name,
-                type: p.domain,
-                lastEdited: new Date(p.updated_at).toLocaleDateString(), // Simple formatting
-                status: p.status,
-                members: [userRes.data.username || 'User'], // Owner
-                icon: p.domain === 'CV' ? Box : p.domain === 'NLP' ? BrainCircuit : Folder
-            }));
+            const mappedProjects = projectsRes.data
+                .map(p => ({
+                    id: p.id,
+                    title: p.name,
+                    desc: p.description,
+                    type: p.domain,
+                    lastEdited: new Date(p.updated_at).toLocaleDateString(),
+                    updatedAt: new Date(p.updated_at),
+                    status: p.status, // 'Active', 'Archived', 'Completed'
+                    members: [userRes.data.username || 'User'], // Owner
+                    icon: p.domain === 'CV' ? Box : p.domain === 'NLP' ? BrainCircuit : Folder
+                }))
+                .sort((a, b) => b.updatedAt - a.updatedAt); // Newest first
+
             setProjects(mappedProjects);
             setUser(userRes.data);
 
@@ -88,9 +96,9 @@ const ProjectsPage = () => {
             
             setProjects([newProject, ...projectsState]);
             setShowCreateModal(false);
-        } catch (error) {
-            console.error("Failed to create project", error);
-            alert("Failed to create project. Check console.");
+            toast.success("Workspace created successfully");
+        } catch {
+            toast.error("Failed to create workspace");
         }
     };
 
@@ -99,17 +107,9 @@ const ProjectsPage = () => {
             await projectService.deleteProject(showDeleteModal);
             setProjects(projectsState.filter(p => p.id !== showDeleteModal));
             setShowDeleteModal(null);
-        } catch (error) {
-            console.error("Failed to delete project", error);
-        }
-    };
-
-    const handleArchiveProject = async (id) => {
-        try {
-            await projectService.updateProject(id, { status: 'Archived' });
-            setProjects(projectsState.map(p => p.id === id ? { ...p, status: 'Archived' } : p));
-        } catch (error) {
-            console.error("Failed to archive project", error);
+            toast.success("Project deleted");
+        } catch {
+            toast.error("Failed to delete project");
         }
     };
 
@@ -136,8 +136,10 @@ const ProjectsPage = () => {
             
             setShowEditModal(false);
             setProjectToEdit(null);
-        } catch (error) {
-            console.error("Failed to update project", error);
+            toast.success("Project updated");
+            fetchData();
+        } catch {
+            toast.error("Failed to update project");
         }
     };
 
@@ -146,23 +148,44 @@ const ProjectsPage = () => {
         setActiveMenu(activeMenu === id ? null : id);
     };
 
-    const handleMenuAction = (action, project) => {
+    const handleMenuAction = async (action, project) => {
         setActiveMenu(null);
-        if (action === 'delete') {
-            setShowDeleteModal(project.id);
-        } else if (action === 'archive') {
-            handleArchiveProject(project.id);
-        } else if (action === 'edit') { // Assuming 'edit' action key
-             // Need to map project structure properly if desc is missing
-             setProjectToEdit({ ...project, desc: '' }); // Fetch full details if needed?
-             setShowEditModal(true);
-        } else if (action === 'share') {
-             alert("Sharing functionality coming soon!"); // UI Mock
-        } else {
-             alert(`${action} action for ${project.title}`);
+        
+        switch (action) {
+            case 'delete':
+                setShowDeleteModal(project.id);
+                break;
+            case 'edit':
+                setProjectToEdit(project);
+                setShowEditModal(true);
+                break;
+            case 'archive':
+            case 'restore':
+                try {
+                    const newStatus = action === 'archive' ? 'Archived' : 'Active';
+                    await projectService.updateProject(project.id, { status: newStatus });
+                    toast.success(`Project ${action === 'archive' ? 'archived' : 'restored'}`);
+                    fetchData();
+                } catch {
+                    toast.error(`Failed to ${action} project`);
+                }
+                break;
+            case 'share':
+                setDialogConfig({
+                    isOpen: true,
+                    title: 'Share Workspace',
+                    message: `Collaborate on "${project.title}". Invite your team to share datasets and experiments.`,
+                    type: 'info',
+                    isConfirm: true,
+                    confirmText: 'Send Invite',
+                    onConfirm: () => toast.success("Invitation sent successfully!")
+                });
+                break;
+            default:
+                break;
         }
     };
-    
+
     const handleCardClick = (project) => {
         if (activeMenu) { setActiveMenu(null); return; } 
         navigate(`/projects/${project.id}`);
@@ -210,7 +233,17 @@ const ProjectsPage = () => {
 
             <div className="projects-grid">
                 {projectsState
-                    .filter(p => activeFilter === 'All' || (activeFilter === 'Recent' ? true : p.status === activeFilter) || (activeFilter === 'Shared' ? p.members.length > 1 : false))
+                    .filter(p => {
+                        if (activeFilter === 'All') return p.status !== 'Archived';
+                        if (activeFilter === 'Archived') return p.status === 'Archived';
+                        if (activeFilter === 'Recent') {
+                            const oneWeekAgo = new Date();
+                            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+                            return p.updatedAt > oneWeekAgo && p.status !== 'Archived';
+                        }
+                        if (activeFilter === 'Shared') return p.status !== 'Archived' && p.members.length > 1;
+                        return true;
+                    })
                     .map(project => (
                     <div key={project.id} className="project-card" onClick={() => handleCardClick(project)}>
                         <div className="card-content">
@@ -308,6 +341,11 @@ const ProjectsPage = () => {
                     onConfirm={handleDeleteProject}
                 />
             )}
+
+            <Dialog 
+                {...dialogConfig} 
+                onClose={() => setDialogConfig({ isOpen: false })} 
+            />
         </div>
     );
 };

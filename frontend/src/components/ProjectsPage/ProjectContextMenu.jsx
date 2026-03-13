@@ -20,10 +20,14 @@ const ProjectContextMenu = ({ project, onClose, onAction }) => {
 
     return (
         <div className="context-menu" ref={menuRef} onClick={e => e.stopPropagation()}>
-            <button className="menu-item" onClick={() => onAction('Edit', project)}>Edit Details</button>
-            <button className="menu-item" onClick={() => onAction('Share', project)}>Share</button>
-            <button className="menu-item" onClick={() => onAction('Archive', project)}>Archive</button>
-            <button className="menu-item delete" onClick={() => onAction('delete', project)}>Delete</button>
+            <button className="menu-item" onClick={() => onAction('edit', project)}>Edit Details</button>
+            <button className="menu-item" onClick={() => onAction('share', project)}>Share</button>
+            {project.status === 'Archived' ? (
+                <button className="menu-item" onClick={() => onAction('restore', project)}>Restore</button>
+            ) : (
+                <button className="menu-item" onClick={() => onAction('archive', project)}>Archive</button>
+            )}
+            <button className="menu-item delete" onClick={() => onAction('delete', project)}>Delete Project</button>
         </div>
     );
 };

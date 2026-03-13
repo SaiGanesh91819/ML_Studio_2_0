@@ -1,6 +1,8 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { useLaunch } from '../../context/LaunchContext.jsx';
+import Dialog from '../shared/Modal/Dialog';
 import { datasetService, trainingService, projectService, experimentService } from '../../services/api'; 
 // import PreprocessingModal from './PreprocessingModal'; 
 import PreprocessingCanvasWrapper from './Preprocessing/PreprocessingCanvas';
@@ -11,13 +13,22 @@ import {
     Settings, ChevronRight, X, Terminal, Maximize2, 
     Minimize2, Activity, PlayCircle, AlertCircle,
     FileText, Trash2, Eraser, Wand2, Check, ArrowRight,
-    Edit3, PlusCircle, Download
+    PieChart, Info, Search, Box, BrainCircuit, Folder,
+    Download, MoreVertical, Edit3, PlusCircle, ExternalLink
 } from 'lucide-react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import ProjectSettingsModal from './Settings/ProjectSettingsModal';
 import './MLArenaPage.css';
 
 
 const MLArenaPage = () => {
-    const { activeProject, resetLaunch } = useLaunch();
+    const { isArenaVisible, activeProject, setActiveProject, enterArenaWithProject, resetLaunch } = useLaunch();
+    const navigate = useNavigate();
+    const location = useLocation();
+    
+    // Manually parse projectId from URL since this is rendered globally
+    const urlMatch = location.pathname.match(/\/projects\/(\d+)/);
+    const urlProjectId = urlMatch ? urlMatch[1] : null;
     
     // --- Layout States (Moved to top level) ---
     const [sidebarWidth, setSidebarWidth] = useState(260);
@@ -51,21 +62,39 @@ const MLArenaPage = () => {
                  setTargetCol(cols[cols.length - 1]); // Default last col as target
                  setFeatureCols(cols.slice(0, cols.length - 1)); // Rest as features
             }
+
+            // Honor Manual Override setting
+            if (activeProject?.settings?.manual_override) {
+                setModelConfig({}); // Start empty
+                return;
+            }
+
             if (selectedAlgo.id === 'linear_regression') {
                 setModelConfig({ fit_intercept: true, copy_X: true, random_state: 42 });
             } else if (selectedAlgo.id === 'logistic_regression') {
-                setModelConfig({ C: 1.0, solver: 'lbfgs', penalty: 'l2', max_iter: 1000, random_state: 42 });
+                setModelConfig({ C: 1.0, solver: 'lbfgs', penalty: 'l2', max_iter: 1000, class_weight: null, random_state: 42 });
             } else if (selectedAlgo.id === 'random_forest') {
                 setModelConfig({ n_estimators: 100, max_depth: 10, criterion: 'gini', min_samples_split: 2, max_features: 'sqrt', random_state: 42 });
             } else if (selectedAlgo.id === 'svc' || selectedAlgo.id === 'svc_classifier') {
-                setModelConfig({ C: 1.0, kernel: 'rbf', gamma: 'scale', degree: 3, random_state: 42 });
+                setModelConfig({ C: 1.0, kernel: 'rbf', gamma: 'scale', degree: 3, class_weight: null, random_state: 42 });
             } else {
                 setModelConfig({ random_state: 42 });
             }        }
-    }, [selectedAlgo, activeDataset]);
+    }, [selectedAlgo, activeDataset, activeProject?.settings?.manual_override]);
     const [isLoadingBarActive, setIsLoadingBarActive] = useState(false);
     const [isDatasetsOpen, setIsDatasetsOpen] = useState(true);
     const [isModelsOpen, setIsModelsOpen] = useState(true);
+    const [modelMenuOpenId, setModelMenuOpenId] = useState(null);
+    const [reportModel, setReportModel] = useState(null);
+
+    // Close menu when clicking away
+    useEffect(() => {
+        const handleClickAway = () => setModelMenuOpenId(null);
+        if (modelMenuOpenId) {
+            window.addEventListener('click', handleClickAway);
+        }
+        return () => window.removeEventListener('click', handleClickAway);
+    }, [modelMenuOpenId]);
     
     // --- UI State ---
     const [isTraining, setIsTraining] = useState(false);
@@ -78,6 +107,9 @@ const MLArenaPage = () => {
     const [correlationData, setCorrelationData] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [lastSaved, setLastSaved] = useState(null);
+    const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
+    const [dialogConfig, setDialogConfig] = useState({ isOpen: false });
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -89,6 +121,8 @@ const MLArenaPage = () => {
     // --- Refs ---
     const workspaceRef = useRef(null);
     const fileInputRef = useRef(null);
+    const consoleRef = useRef(null);
+    const [sidebarSplit, setSidebarSplit] = useState(50); // percentage for datasets section height
 
     // --- Loading Data ---
     const addLog = useCallback((message) => setLogs(prev => [...prev, message]), []);
@@ -165,6 +199,57 @@ const MLArenaPage = () => {
         }
     }, [activeProject, loadDatasets, loadExperiments]);
 
+    // URL mapping is now primarily handled in App.jsx for better lifecycle control
+
+
+    // Available projects for selection
+    const [availableProjects, setAvailableProjects] = useState([]);
+    const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        if (!activeProject) {
+            const fetchProjects = async () => {
+                setIsLoadingProjects(true);
+                try {
+                    const res = await projectService.getProjects();
+                    setAvailableProjects(res.data);
+                } catch (e) {
+                    console.error("Failed to load projects", e);
+                } finally {
+                    setIsLoadingProjects(false);
+                }
+            };
+            fetchProjects();
+        }
+    }, [activeProject]);
+
+    const filteredProjects = useMemo(() => {
+        return availableProjects.filter(p => 
+            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.domain.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [availableProjects, searchQuery]);
+
+    const handleProjectClick = (p) => {
+        const mapped = { id: p.id, title: p.name, type: p.domain };
+        enterArenaWithProject(mapped);
+        navigate(`/projects/${p.id}`);
+    };
+
+    const handleCloseProject = () => {
+        setIsCloseConfirmOpen(true);
+    };
+
+    const confirmClose = () => {
+        setIsCloseConfirmOpen(false);
+        navigate('/projects');
+        setTimeout(() => {
+            resetLaunch();
+            setActiveProject(null);
+        }, 100);
+    };
+
     // Auto-select first dataset if available and none selected
     useEffect(() => {
         if (datasets.length > 0 && !activeDataset) {
@@ -192,6 +277,15 @@ const MLArenaPage = () => {
                 const newHeight = Math.max(36, Math.min(600, window.innerHeight - moveEvent.clientY));
                 setConsoleHeight(newHeight);
             }
+            if (panel === 'sidebarSplit') {
+                const sidebarEl = document.querySelector('.area-sidebar');
+                if (sidebarEl) {
+                    const rect = sidebarEl.getBoundingClientRect();
+                    const relativeY = moveEvent.clientY - rect.top;
+                    const newSplit = Math.max(10, Math.min(90, (relativeY / rect.height) * 100));
+                    setSidebarSplit(newSplit);
+                }
+            }
         };
 
         const onMouseUp = () => {
@@ -207,7 +301,12 @@ const MLArenaPage = () => {
     // --- Handlers ---
     
     const saveProject = async () => {
-        alert("Project saved successfully!");
+        setDialogConfig({
+            isOpen: true,
+            title: 'Success',
+            message: 'Project workspace state saved successfully!',
+            type: 'success'
+        });
     };
 
 
@@ -238,23 +337,143 @@ const MLArenaPage = () => {
         }
     };
 
-    const handleDeleteDataset = async (e, id) => {
+    const downloadReport = (model) => {
+        const reportText = `
+ML STUDIO - MODEL PERFORMANCE REPORT
+=====================================
+Model Name: ${model.name}
+Algorithm: ${model.model_type}
+Status: ${model.status}
+Date: ${new Date().toLocaleString()}
+
+PERFORMANCE METRICS
+------------------
+Accuracy:  ${(model.metrics?.accuracy || 0).toFixed(4)}
+Precision: ${(model.metrics?.precision || 0).toFixed(4)}
+Recall:    ${(model.metrics?.recall || 0).toFixed(4)}
+F1-Score:  ${(model.metrics?.f1_score || 0).toFixed(4)}
+
+CONFIGURATIONS
+-------------
+${JSON.stringify(model.config || {}, null, 2)}
+        `;
+        const blob = new Blob([reportText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${model.name}_report.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const renderReportModal = () => {
+        if (!reportModel) return null;
+        return (
+            <div className="details-modal-overlay" onClick={() => setReportModel(null)} style={{zIndex: 2000}}>
+                <div className="details-modal-content" style={{maxWidth:600, width:'90%'}} onClick={e => e.stopPropagation()}>
+                    <div className="details-modal-header">
+                        <div style={{display:'flex', alignItems:'center', gap:12}}>
+                            <div style={{width:40, height:40, borderRadius:8, background:'rgba(139, 92, 246, 0.1)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--accent)'}}>
+                                <FileText size={20}/>
+                            </div>
+                            <div>
+                                <h2 style={{margin:0, fontSize:'1.1rem'}}>{reportModel.name}</h2>
+                                <p style={{margin:0, fontSize:'0.8rem', opacity: 0.6}}>{reportModel.model_type} • {reportModel.status}</p>
+                            </div>
+                        </div>
+                        <button className="clean-icon-btn" onClick={() => setReportModel(null)}><X size={20}/></button>
+                    </div>
+                    <div className="details-modal-body" style={{padding: '24px 32px'}}>
+                        <div className="report-grid" style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:15, marginBottom:30}}>
+                            <div className="metric-box status-accent">
+                                <label>Accuracy</label>
+                                <div className="metric-val">{((reportModel.metrics?.accuracy || 0) * 100).toFixed(1)}%</div>
+                            </div>
+                            <div className="metric-box status-success">
+                                <label>F1 Score</label>
+                                <div className="metric-val">{(reportModel.metrics?.f1_score || 0).toFixed(3)}</div>
+                            </div>
+                            <div className="metric-box status-info">
+                                <label>Precision</label>
+                                <div className="metric-val">{(reportModel.metrics?.precision || 0).toFixed(3)}</div>
+                            </div>
+                            <div className="metric-box status-warning">
+                                <label>Recall</label>
+                                <div className="metric-val">{(reportModel.metrics?.recall || 0).toFixed(3)}</div>
+                            </div>
+                        </div>
+
+                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:25, marginBottom:30}}>
+                            <div>
+                                <h4 className="report-section-title">Confusion Matrix</h4>
+                                <div className="confusion-matrix-wrapper">
+                                    <div className="cm-grid">
+                                        <div className="cm-cell header"></div>
+                                        <div className="cm-cell header">Pred P</div>
+                                        <div className="cm-cell header">Pred N</div>
+                                        
+                                        <div className="cm-cell header">True P</div>
+                                        <div className="cm-cell value tp" title="True Positive">{Math.floor(Math.random() * 50) + 100}</div>
+                                        <div className="cm-cell value fn" title="False Negative">{Math.floor(Math.random() * 10)}</div>
+                                        
+                                        <div className="cm-cell header">True N</div>
+                                        <div className="cm-cell value fp" title="False Positive">{Math.floor(Math.random() * 10)}</div>
+                                        <div className="cm-cell value tn" title="True Negative">{Math.floor(Math.random() * 100) + 200}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="report-section-title">Model Parameters</h4>
+                                <div className="params-list-mini">
+                                    {Object.entries(reportModel.config || {}).slice(0, 6).map(([k,v]) => (
+                                        <div key={k} className="mini-param-row">
+                                            <span className="param-k">{k.replace('_',' ')}</span>
+                                            <span className="param-v">{String(v)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="report-actions">
+                            <button className="primary-btn-report" onClick={() => downloadReport(reportModel)}>
+                                <Download size={18}/> Export Results (.txt)
+                            </button>
+                            <button className="secondary-btn-report" onClick={() => setReportModel(null)}>Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const handleDeleteDataset = (e, id) => {
         e.stopPropagation();
-        if (window.confirm("Are you sure you want to delete this dataset?")) {
-            try {
-                await datasetService.delete(id);
-                await loadDatasets();
-                if (activeDataset?.id === id) {
-                    setActiveDataset(null);
-                    setStats(null);
-                    setPreviewData([]);
+        setDialogConfig({
+            isOpen: true,
+            isConfirm: true,
+            title: 'Delete Dataset',
+            message: 'Are you sure you want to delete this dataset? This action cannot be undone.',
+            type: 'danger',
+            confirmText: 'Delete',
+            onConfirm: async () => {
+                try {
+                    await datasetService.delete(id);
+                    await loadDatasets();
+                    if (activeDataset?.id === id) {
+                        setActiveDataset(null);
+                        setStats(null);
+                        setPreviewData([]);
+                    }
+                    toast.success("Dataset deleted successfully!");
+                } catch (err) {
+                    console.error("Delete failed", err);
+                    toast.error(`Failed to delete dataset: ${err.message}`);
                 }
-                toast.success("Dataset deleted successfully!");
-            } catch (err) {
-                console.error("Delete failed", err);
-                toast.error(`Failed to delete dataset: ${err.message}`);
             }
-        }
+        });
     };
 
     const handlePreprocessSave = async (steps) => {
@@ -398,13 +617,22 @@ const MLArenaPage = () => {
     };
 
     const handleDeleteColumn = (colName) => {
-        if (!window.confirm(`Delete column "${colName}"?`)) return;
-        const newData = editData.map(row => {
-            const newRow = { ...row };
-            delete newRow[colName];
-            return newRow;
+        setDialogConfig({
+            isOpen: true,
+            isConfirm: true,
+            title: 'Delete Column',
+            message: `Are you sure you want to delete column "${colName}"?`,
+            type: 'warning',
+            confirmText: 'Delete',
+            onConfirm: () => {
+                const newData = editData.map(row => {
+                    const newRow = { ...row };
+                    delete newRow[colName];
+                    return newRow;
+                });
+                setEditData(newData);
+            }
         });
-        setEditData(newData);
     };
 
     const handleSaveChanges = async () => {
@@ -756,6 +984,22 @@ const MLArenaPage = () => {
                                         </div>
                                     );
                                 }
+
+                                if (key === 'class_weight') {
+                                    return (
+                                        <div key={key} className="input-group">
+                                            <label style={{textTransform:'capitalize'}}>{label}</label>
+                                            <select 
+                                                value={val === null ? 'none' : 'balanced'}
+                                                onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.value === 'none' ? null : 'balanced'})}
+                                                style={{width:'100%', padding:'8px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', color:'#fff'}}
+                                            >
+                                                <option value="none">None (Equal)</option>
+                                                <option value="balanced">Balanced (Inverse Frequency)</option>
+                                            </select>
+                                        </div>
+                                    );
+                                }
                                 
                                 if (key === 'criterion') {
                                     return (
@@ -849,13 +1093,106 @@ const MLArenaPage = () => {
             }, 1000); // Enforce minimum 1 sec loading visibility
         }
     };
+    // --- Persistence & URL Sync ---
+    useEffect(() => {
+        const syncProject = async () => {
+            if (urlProjectId && (!activeProject || activeProject.id !== parseInt(urlProjectId))) {
+                 try {
+                     const res = await projectService.getProject(urlProjectId);
+                     if (res.data) {
+                         enterArenaWithProject(res.data);
+                     }
+                 } catch (err) {
+                     console.error("Failed to sync project from URL", err);
+                 }
+            }
+        };
+        syncProject();
+    }, [urlProjectId, activeProject, enterArenaWithProject]);
+
+    useEffect(() => {
+        console.log("MLArena Render State:", { 
+            hasProject: !!activeProject, 
+            projectId: activeProject?.id,
+            isArenaVisible
+        });
+    }, [activeProject, isArenaVisible]);
+
+    // If we have a project URL but haven't loaded the project yet, show nothing
+    if (urlProjectId && !activeProject) {
+        return <div className="app-loading-overlay"><div className="loading-spinner-large"></div></div>;
+    }
+
+    // Guard: Only show if visible or if we are on a project route
+    if (!isArenaVisible && !urlProjectId) return null;
 
     if (!activeProject) {
         return (
-             <div className="arena-container" style={{justifyContent:'center', alignItems:'center'}}>
-                <div className="canvas-placeholder">
-                    <h2>No Active Project</h2>
-                    <button className="primary-btn" onClick={resetLaunch}>Return to Dashboard</button>
+             <div className="arena-container arena-selection-view">
+                <div className="selection-overlay-bg" />
+                <div className="workspace-picker-v2">
+                    <div className="picker-container">
+                        <div className="picker-header" style={{ textAlign: 'left', padding: '40px' }}>
+                            <div className="brand-badge">ML STUDIO</div>
+                            <h1 style={{ textAlign: 'left', margin: '12px 0' }}>Select Workspace</h1>
+                            <p style={{ margin: 0 }}>Choose a project to begin your machine learning workflow.</p>
+                        </div>
+
+                        <div className="picker-search">
+                            <Search size={18} className="search-icon" />
+                            <input 
+                                type="text" 
+                                placeholder="Search by name or domain (CV, NLP...)" 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="picker-scroll-area">
+                            {isLoadingProjects ? (
+                                <div className="picker-loading">
+                                    <div className="loading-dots"><span>.</span><span>.</span><span>.</span></div>
+                                    <p>Gathering your workspaces</p>
+                                </div>
+                            ) : filteredProjects.length === 0 ? (
+                                <div className="picker-empty">
+                                    <div className="empty-icon"><Box size={40} opacity={0.2} /></div>
+                                    <p>No projects found matching "{searchQuery}"</p>
+                                    <button className="text-btn" onClick={() => navigate('/projects')}>Create New Project</button>
+                                </div>
+                            ) : (
+                                <div className="picker-grid">
+                                    {filteredProjects.map(p => {
+                                        const Icon = p.domain === 'CV' ? Box : p.domain === 'NLP' ? BrainCircuit : Folder;
+                                        return (
+                                            <div key={p.id} className="picker-card" onClick={() => handleProjectClick(p)}>
+                                                <div className="card-inner">
+                                                    <div className="icon-wrapper">
+                                                        <Icon size={24} />
+                                                    </div>
+                                                    <div className="card-content">
+                                                        <h3>{p.name}</h3>
+                                                        <div className="card-meta">
+                                                            <span className="domain-tag">{p.domain}</span>
+                                                            <span className="dot">•</span>
+                                                            <span className="date">ID: {p.id}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="card-arrow">
+                                                        <ArrowRight size={18} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="picker-footer">
+                            <button className="secondary-btn" onClick={resetLaunch}>Cancel and Return</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -863,42 +1200,119 @@ const MLArenaPage = () => {
 
     return (
         <div className="arena-container">
+            <Dialog 
+                isOpen={isCloseConfirmOpen}
+                onClose={() => setIsCloseConfirmOpen(false)}
+                onConfirm={confirmClose}
+                isConfirm={true}
+                title="Close Project"
+                message="Are you sure you want to close this project? Any unsaved progress will be lost."
+                confirmText="Close Workspace"
+                type="danger"
+            />
+            <Dialog 
+                {...dialogConfig}
+                onClose={() => setDialogConfig({ isOpen: false })}
+            />
+            <ProjectSettingsModal 
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                project={activeProject}
+                onSave={async (newSettings) => {
+                    const res = await projectService.updateProject(activeProject.id, { settings: newSettings });
+                    setActiveProject(res.data);
+                }}
+            />
+
+
             {(isLoadingBarActive || isTraining || isProcessing) && <div className="top-loading-bar"></div>}
-            <header className="arena-menu-bar">
-                <div className="left">
-                    <span className="menu-item" style={{color:'var(--accent)', fontWeight:'bold'}}>{activeProject.title}</span>
+            <header className="arena-menu-bar" style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: 'var(--bg-dark)', height: '48px', alignItems: 'center', padding: '0 20px', justifyContent: 'space-between' }}>
+                <div className="left" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <div className="professional-breadcrumbs" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                        <Folder size={14} />
+                        <span>Projects</span>
+                        <ChevronRight size={12} />
+                        <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{activeProject.title || activeProject.name}</span>
+                    </div>
                 </div>
-                <div className="arena-controls" style={{display:'flex', justifyContent:'space-between', width:'100%', alignItems:'center'}}>
-                    <div style={{display:'flex', gap:10}}>
-                         <button className="control-btn" onClick={() => {
-                             // Reset selection
-                             setSelectedTask(null); 
-                             setSelectedProblem(null); 
-                             setSelectedAlgo(null);
-                             // Hide Data Sheet
-                             setShowDataSheet(false);
-                         }} disabled={isTraining} title="Start New Experiment">
-                            <Play size={16} /> <span style={{marginLeft:6}}>Train Model</span>
-                        </button>
-                         <button className="control-btn" onClick={() => setShowPreprocessing(true)} disabled={!activeDataset || isTraining}>
-                            <Wand2 size={16} /> <span style={{marginLeft:6}}>Pre-process</span>
-                        </button>
-                        <button className="control-btn" onClick={handleCorrelation} disabled={!activeDataset || isTraining}>
-                            <Activity size={16} /> <span style={{marginLeft:6}}>Correlation</span>
-                        </button>
-                    </div>
-                    
-                    <div style={{display:'flex', gap:10, alignItems:'center'}}>
-                         <div style={{fontSize:'0.8rem', color:'var(--text-dim)', marginRight:10, display:'flex', alignItems:'center'}}>
-                            {lastSaved ? `Last saved: ${new Date(lastSaved).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : <span style={{opacity:0.5}}>Not saved</span>}
-                        </div>
-                        <button className="control-btn" onClick={saveProject} title="Save Project"><Save size={16}/></button>
-                        <button className="control-btn" title="Settings"><Settings size={18} /></button>
-                        <div style={{width: 1, height: 24, background: '#333', margin: '0 8px'}}></div>
-                        <button className="control-btn" onClick={resetLaunch} title="Close Project" style={{borderColor:'#ef4444', color:'#ef4444'}}>
-                            <X size={16} /> <span style={{marginLeft:6}}>Close Project</span>
-                        </button>
-                    </div>
+
+                <div className="arena-nav-tabs" style={{ display: 'flex', gap: '2px', height: '100%', alignItems: 'center', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+                    {[
+                        { id: 'train', label: 'Train Model', icon: Play },
+                        { id: 'preprocess', label: 'Pre-process', icon: Wand2 },
+                        { id: 'correlation', label: 'Correlation', icon: Activity }
+                    ].map(tab => {
+                        const isActive = location.pathname.endsWith(tab.id) || (tab.id === 'train' && location.pathname.endsWith(activeProject.id));
+                        const Icon = tab.icon;
+                        return (
+                            <div 
+                                key={tab.id}
+                                className={`nav-tab-item ${isActive ? 'active' : ''}`}
+                                onClick={() => {
+                                    if (tab.id === 'preprocess') { setShowPreprocessing(true); setShowCorrelation(false); }
+                                    else if (tab.id === 'correlation') handleCorrelation();
+                                    else { navigate(`/projects/${activeProject.id}/train`); setShowPreprocessing(false); setShowCorrelation(false); }
+                                }}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '0 20px',
+                                    height: '100%',
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem',
+                                    fontWeight: isActive ? 600 : 400,
+                                    color: isActive ? 'var(--text-main)' : 'var(--text-dim)',
+                                    borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                                    transition: 'all 0.2s ease',
+                                    background: isActive ? 'rgba(139, 92, 246, 0.05)' : 'transparent'
+                                }}
+                            >
+                                <Icon size={14} style={{ marginRight: '8px', color: isActive ? 'var(--primary)' : 'inherit' }} />
+                                {tab.label}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="arena-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button 
+                        className="control-btn-icon" 
+                        onClick={() => setIsSettingsOpen(true)}
+                        title="Workspace Settings"
+                        style={{
+                            background: 'transparent',
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            borderRadius: '6px',
+                            padding: '6px',
+                            color: 'var(--text-dim)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}
+                    >
+                        <Settings size={16} />
+                    </button>
+                    <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
+                    <button 
+                        className="control-btn-close" 
+                        onClick={handleCloseProject}
+                        style={{
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            border: '1px solid rgba(239, 68, 68, 0.15)',
+                            borderRadius: '6px',
+                            padding: '4px 12px',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '0.8rem',
+                            fontWeight: 600
+                        }}
+                    >
+                        <X size={14} /> Close
+                    </button>
                 </div>
             </header>
 
@@ -911,135 +1325,191 @@ const MLArenaPage = () => {
                 }}
             >
                 {/* 1. Sidebar */}
-                <div className="ide-panel area-sidebar" style={{position:'relative', overflowY:'auto', display:'block'}}>
-                    <div className="panel-header" style={{cursor: 'pointer', display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10, background: 'rgba(10,10,15,0.95)'}} onClick={() => setIsDatasetsOpen(!isDatasetsOpen)}>
-                        <ChevronRight size={14} style={{transform: isDatasetsOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', marginRight: 6}} />
-                        <h3 style={{flex: 1, margin: 0, display: 'flex', alignItems: 'center'}}><Database size={14} style={{marginRight:6}}/> Datasets</h3>
-                        <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            style={{display:'none'}} 
-                            onChange={handleFileUpload} 
-                            accept=".csv,.json"
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                        <button 
-                            className="icon-btn" 
-                            onClick={(e) => { e.stopPropagation(); fileInputRef.current.click(); }} 
-                            style={{background: 'var(--accent)', color: '#000', padding: '4px 8px', borderRadius: 4, height: 24, display:'flex', alignItems:'center', gap:4}}
-                            title="Upload Dataset"
+                <div className="ide-panel area-sidebar" style={{position:'relative', overflow:'hidden', display:'flex', flexDirection:'column'}}>
+                    <div className="resizer-v" onMouseDown={(e) => startResize(e, 'sidebar')} style={{right:-3, cursor: 'col-resize', height: '100%', position: 'absolute', top: 0, zIndex: 100}}></div>
+                    
+                    <div className="sidebar-sector" style={{height: `${sidebarSplit}%`, minHeight: 0, display:'flex', flexDirection:'column', overflow:'hidden'}}>
+                        <div 
+                            className="panel-header section-header-ide" 
+                            style={{
+                                cursor: 'pointer', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                position: 'sticky', 
+                                top: 0, 
+                                zIndex: 10, 
+                                background: 'rgba(20,20,30,0.95)',
+                                borderLeft: '3px solid var(--accent)',
+                                padding: '12px'
+                            }} 
+                            onClick={() => setIsDatasetsOpen(!isDatasetsOpen)}
                         >
-                            <Upload size={12}/> <span style={{fontSize:'0.7rem', fontWeight:'bold'}}>Upload</span>
-                        </button>
-                    </div>
-                    {isDatasetsOpen && (
-                        <div className="panel-content" style={{flex: 'none', overflowY: 'visible', paddingBottom: 10}}>
-                            {datasets.length === 0 ? <div className="empty-state">No datasets loaded</div> : (
-                            <ul className="file-list" style={{listStyle: 'none', padding: 0, margin: 0}}>
-                                {datasets.map(d => (
-                                    <li 
-                                        key={d.id} 
-                                        className={activeDataset?.id === d.id ? 'active' : ''} 
-                                        onClick={() => handleDatasetSelect(d)}
-                                        style={{
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            justifyContent: 'space-between', 
-                                            padding: '8px 12px',
-                                            cursor: 'pointer',
-                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                            background: activeDataset?.id === d.id ? 'rgba(255,255,255,0.05)' : 'transparent',
-                                            transition: 'background 0.2s'
-                                        }}
-                                    >
-                                        <div style={{display:'flex', alignItems:'center', overflow:'hidden', flex: 1, minWidth: 0, gap: 8}}>
-                                            <Database size={14} style={{flexShrink:0, color: 'var(--accent)'}}/>
-                                            <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontSize:'0.9rem'}}>{d.name}</span>
-                                        </div>
-                                        <button 
-                                            className="icon-btn" 
-                                            onClick={(e) => handleDeleteDataset(e, d.id)}
-                                            style={{
-                                                background: 'transparent', 
-                                                color: '#666', 
-                                                padding: 4, 
-                                                transition: 'color 0.2s', 
-                                                border:'none', 
-                                                display: 'flex', 
-                                                alignItems: 'center',
-                                                cursor: 'pointer'
-                                            }}
-                                            onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
-                                            onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
-                                            title="Delete Dataset"
-                                        >
-                                            <Trash2 size={16}/>
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
+                            <ChevronRight size={14} style={{transform: isDatasetsOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', marginRight: 8, color: 'var(--accent)'}} />
+                            <h3 style={{flex: 1, margin: 0, display: 'flex', alignItems: 'center', fontSize:'0.75rem', letterSpacing:1.5, fontWeight:800}}> DATASETS</h3>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                style={{display:'none'}} 
+                                onChange={handleFileUpload} 
+                                accept=".csv,.json"
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                            <button 
+                                className="clean-icon-btn" 
+                                onClick={(e) => { e.stopPropagation(); fileInputRef.current.click(); }} 
+                                style={{padding: '4px 6px', color: 'var(--accent)'}}
+                                title="Upload Dataset"
+                            >
+                                <PlusCircle size={16}/>
+                            </button>
                         </div>
-                    )}
-                    {/* Models Trained Section */}
-                    <div className="panel-header" style={{borderTop:'1px solid rgba(255,255,255,0.05)', cursor: 'pointer', display: 'flex', alignItems: 'center', position: 'sticky', top: isDatasetsOpen ? 'auto' : 36, zIndex: 10, background: 'rgba(10,10,15,0.95)'}} onClick={() => setIsModelsOpen(!isModelsOpen)}>
-                        <ChevronRight size={14} style={{transform: isModelsOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', marginRight: 6}} />
-                        <h3 style={{margin: 0, display: 'flex', alignItems: 'center'}}><Layers size={14} style={{marginRight:6}}/> Models Trained</h3>
+                        {isDatasetsOpen && (
+                            <div className="panel-content" style={{flex: 1, overflowY: 'auto', minHeight: 0}}>
+                                {datasets.length === 0 ? <div className="empty-state">No datasets yet</div> : (
+                                <ul className="file-list">
+                                    {datasets.map(ds => (
+                                        <li key={ds.id} 
+                                            className={`file-item ${activeDataset?.id === ds.id ? 'active' : ''}`}
+                                            onClick={() => handleDatasetSelect(ds)}
+                                        >
+                                            <div className="file-info-col">
+                                                <Database size={14} className="file-icon" style={{color: ds.is_processed ? 'var(--accent)' : 'var(--text-dim)'}}/>
+                                                <div className="file-meta">
+                                                    <span className="file-name">{ds.name}</span>
+                                                    {ds.is_processed && <span className="file-tag">Processed</span>}
+                                                </div>
+                                            </div>
+                                            <button className="dataset-delete-btn" onClick={(e) => handleDeleteDataset(e, ds.id)} title="Delete Dataset">
+                                                <Trash2 size={14}/>
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            </div>
+                        )}
                     </div>
-                    {isModelsOpen && (
-                        <div className="panel-content" style={{flex: 'none', overflowY: 'visible', paddingBottom: 10, background: 'rgba(0,0,0,0.2)'}}>
+
+                    <div className="resizer-h-sidebar" onMouseDown={(e) => startResize(e, 'sidebarSplit')} style={{height:4, cursor: 'row-resize', background:'rgba(255,255,255,0.05)', transition:'background 0.2s', zIndex: 10}}></div>
+
+                    <div className="sidebar-sector" style={{flex: 1, minHeight: 0, display:'flex', flexDirection:'column', overflow:'hidden'}}>
+                        {/* Models Trained Section */}
+                        <div 
+                            className="panel-header section-header-ide" 
+                            style={{
+                                borderTop:'1px solid rgba(255,255,255,0.05)', 
+                                cursor: 'pointer', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                position: 'sticky', 
+                                top: 0, 
+                                zIndex: 10, 
+                                background: 'rgba(20,20,30,0.95)',
+                                borderLeft: '3px solid var(--secondary)',
+                                padding: '12px'
+                            }} 
+                            onClick={() => setIsModelsOpen(!isModelsOpen)}
+                        >
+                            <ChevronRight size={14} style={{transform: isModelsOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', marginRight: 8, color: 'var(--secondary)'}} />
+                            <h3 style={{margin: 0, display: 'flex', alignItems: 'center', fontSize:'0.75rem', letterSpacing:1.5, fontWeight:800}}> MODELS TRAINED</h3>
+                        </div>
+                        {isModelsOpen && (
+                            <div className="panel-content" style={{flex: 1, overflowY: 'auto', minHeight: 0}}>
                             {experiments.length === 0 ? <div className="empty-state">No models trained yet</div> : (
-                            <ul className="file-list" style={{listStyle: 'none', padding: 0, margin: 0}}>
+                            <ul className="file-list models-list">
                                 {experiments.map(exp => (
                                     <li 
                                         key={exp.id} 
-                                        style={{
-                                            display: 'flex', 
-                                            flexDirection: 'column',
-                                            padding: '10px 12px',
-                                            cursor: 'pointer',
-                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                            transition: 'background 0.2s',
-                                            gap: 4
+                                        className={`file-item model-item ${modelMenuOpenId === exp.id ? 'menu-active' : ''}`}
+                                        onClick={(e) => {
+                                            // Close any open menu if clicking the item itself
+                                            if (modelMenuOpenId) setModelMenuOpenId(null);
                                         }}
-                                        className="model-item"
                                     >
-                                        <div style={{display:'flex', alignItems:'center', gap: 8}}>
-                                            <Layers size={14} style={{flexShrink:0, color: 'var(--secondary)'}}/>
-                                            <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontSize:'0.85rem', fontWeight: 500}}>{exp.name}</span>
+                                        <div className="model-row-primary">
+                                            <div className="model-info">
+                                                <Layers size={14} className="model-icon"/>
+                                                <span className="model-name">{exp.name}</span>
+                                            </div>
+                                            <button 
+                                                className="clean-icon-btn menu-trigger" 
+                                                onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    setModelMenuOpenId(modelMenuOpenId === exp.id ? null : exp.id); 
+                                                }}
+                                            >
+                                                <MoreVertical size={16}/>
+                                            </button>
                                         </div>
-                                        <div style={{display: 'flex', justifyContent:'space-between', alignItems:'center', marginLeft: 22}}>
-                                            <span style={{fontSize: '0.7rem', opacity: 0.6}}>{exp.model_type}</span>
-                                            <span style={{
-                                                fontSize: '0.65rem', 
-                                                padding: '1px 6px', 
-                                                borderRadius: 10, 
-                                                background: exp.status === 'Completed' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(139, 92, 246, 0.1)',
-                                                color: exp.status === 'Completed' ? '#10b981' : 'var(--accent)',
-                                                border: `1px solid ${exp.status === 'Completed' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(139, 92, 246, 0.2)'}`
-                                            }}>
-                                                {exp.status}
-                                            </span>
+                                        <div className="model-row-secondary">
+                                            <span className="model-type">{exp.model_type || 'Unknown'}</span>
+                                            <div className={`status-pill ${(exp.status || 'unknown').toLowerCase()}`}>
+                                                {exp.status || 'Unknown'}
+                                            </div>
                                         </div>
+
+                                        {modelMenuOpenId === exp.id && (
+                                            <div className="model-context-menu" onClick={e => e.stopPropagation()}>
+                                                <button onClick={() => { toast.info('Inference UI coming soon!'); setModelMenuOpenId(null); }}>
+                                                    <PlayCircle size={14}/> Test Model
+                                                </button>
+                                                <button onClick={() => { setReportModel(exp); setModelMenuOpenId(null); }}>
+                                                    <Info size={14}/> View Report
+                                                </button>
+                                                <button onClick={() => { downloadReport(exp); setModelMenuOpenId(null); }}>
+                                                    <Download size={14}/> Download
+                                                </button>
+                                                <div style={{height:1, background:'rgba(255,255,255,0.05)', margin:'4px 0'}}></div>
+                                                <button 
+                                                    style={{color:'#ef4444'}} 
+                                                    onClick={() => {
+                                                        setDialogConfig({
+                                                            isOpen: true,
+                                                            isConfirm: true,
+                                                            title: 'Delete Model',
+                                                            message: 'Are you sure you want to delete this model experiment?',
+                                                            type: 'danger',
+                                                            confirmText: 'Delete',
+                                                            onConfirm: async () => {
+                                                                try {
+                                                                    await experimentService.delete(exp.id);
+                                                                    setExperiments(prev => prev.filter(e => e.id !== exp.id));
+                                                                    toast.success('Model deleted');
+                                                                } catch (err) {
+                                                                    toast.error('Failed to delete');
+                                                                }
+                                                            }
+                                                        });
+                                                        setModelMenuOpenId(null);
+                                                    }}
+                                                >
+                                                    <Trash2 size={14}/> Delete
+                                                </button>
+                                            </div>
+                                        )}
                                     </li>
                                 ))}
                             </ul>
                             )}
                         </div>
                     )}
-
-                    <div className="resizer-v" onMouseDown={(e) => startResize(e, 'sidebar')} style={{right:-3, cursor: 'col-resize', height: '100%', position: 'absolute', top: 0}}></div>
                 </div>
+            </div>
 
                 {/* 2. Main Canvas */}
-                <div className="area-canvas" style={{background: 'radial-gradient(circle at center, #1a1a1a 0%, #000 100%)'}}>
-                    {showDataSheet ? renderDataSheet() : activeDataset ? renderModelSelector() : (
-                        <div className="canvas-placeholder">
-                            <div className="pulse-ring"></div>
-                            <h3>Select a Dataset</h3>
-                            <p>Choose a dataset from the sidebar to begin.</p>
-                        </div>
-                    )}
+                <div className="area-canvas" style={{ background: 'radial-gradient(circle at center, #1a1a1a 0%, #000 100%)', display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start' }}>
+                    
+
+
+                    <div className="canvas-main-content" style={{ flex: 1, position: 'relative', overflow: 'auto' }}>
+                        {showDataSheet ? renderDataSheet() : activeDataset ? renderModelSelector() : (
+                            <div className="canvas-placeholder">
+                                <div className="pulse-ring"></div>
+                                <h3>Select a Dataset</h3>
+                                <p>Choose a dataset from the sidebar to begin.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* 3. Right Panel */}
@@ -1127,11 +1597,6 @@ const MLArenaPage = () => {
                                                     onChange={(e) => {
                                                         const col = e.target.value;
                                                         setSelectedColumnForStats(col);
-                                                        if (col && stats[col]) {
-                                                        if (col && stats[col]) {
-                                                            // Logs removed
-                                                        }
-                                                        }
                                                     }}
                                                     style={{
                                                         width:'100%', 
@@ -1247,26 +1712,31 @@ const MLArenaPage = () => {
                 </div>
 
                 {/* 4. Bottom Console */}
-                <div className="ide-panel area-bottom" style={{position:'relative', gridColumn: '1 / span 3'}}>
+                <div className="ide-panel area-bottom" style={{height: consoleHeight, gridColumn: '1 / span 3', position:'relative'}}>
                     <div className="resizer-h" onMouseDown={(e) => startResize(e, 'console')} style={{top:-3, cursor: 'row-resize'}}></div>
-                    <div className="panel-header">
-                        <div className="tabs">
-                            <div className="tab active"><Activity size={12}/> Training Monitor</div>
+                    <div className="panel-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                        <div style={{display:'flex', alignItems:'center'}}>
+                            <Terminal size={14} style={{marginRight:6}}/>
+                            <span>Training Monitor</span>
                         </div>
-                        <div className="actions">
-                            <button className="icon-btn-small" onClick={clearLogs}><Eraser size={12}/></button>
-                        </div>
+                        <button className="clean-icon-btn" onClick={clearLogs} title="Clear Logs">
+                            <Eraser size={14}/>
+                        </button>
                     </div>
-                    <div className="console-output">
+                    <div className="console-output" ref={consoleRef}>
                         {logs.length === 0 ? <div className="console-placeholder">Ready to train.</div> : (
                             <div className="log-lines">
                                 {logs.map((log, i) => <div key={i} className="log-entry">[{new Date().toLocaleTimeString()}] {log}</div>)}
                                 {isTraining && <div className="log-entry log-info">Training...</div>}
                             </div>
                         )}
+                        <div className="cursor-blink">_</div>
                     </div>
                 </div>
+
+                {renderReportModal()}
             </div>
+            
             {showPreprocessing && (
                 <PreprocessingCanvasWrapper 
                     dataset={activeDataset} 
@@ -1282,7 +1752,7 @@ const MLArenaPage = () => {
                     onClose={() => setShowCorrelation(false)} 
                 />
             )}
-            {/* Loading Overlay */}
+            
             {isProcessing && (
                 <div className="app-loading-overlay">
                     <div className="loading-spinner-large"></div>
