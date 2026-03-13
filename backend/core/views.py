@@ -110,10 +110,28 @@ class DatasetViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        queryset = Dataset.objects.filter(project__user=self.request.user)
+        
         project_id = self.request.query_params.get('project_id')
+        search = self.request.query_params.get('search')
+        sort = self.request.query_params.get('sort', '-uploaded_at')
+
         if project_id and project_id != 'undefined':
-            return Dataset.objects.filter(project_id=project_id, project__user=self.request.user)
-        return Dataset.objects.filter(project__user=self.request.user)
+            queryset = queryset.filter(project_id=project_id)
+        
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+
+        # Map frontend sort keys to backend fields
+        sort_map = {
+            'newest': '-uploaded_at',
+            'oldest': 'uploaded_at',
+            'name': 'name',
+            'size': '-row_count'
+        }
+        order_by = sort_map.get(sort, '-uploaded_at')
+        
+        return queryset.order_by(order_by)
 
     def perform_create(self, serializer):
         print(f"Request Data: {self.request.data}") # Debug log

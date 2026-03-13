@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
-import { authService, projectService } from '../../services/api';
+import { projectService } from '../../services/api';
 import { 
     Activity, 
     Box, 
     Cpu, 
-    Database, 
     Zap, 
     ArrowUpRight, 
     Plus,
@@ -18,7 +17,6 @@ import {
 const Dashboard = () => {
     const [selectedYear, setSelectedYear] = useState('2026');
     const [timeSpan, setTimeSpan] = useState('All Year');
-    const [user, setUser] = useState({ username: 'User' });
     const [projects, setProjects] = useState([]);
     const [activityMap, setActivityMap] = useState({});
 
@@ -26,12 +24,7 @@ const Dashboard = () => {
         const loadData = async () => {
             try {
                 // Parallel fetch
-                const [userRes, projectsRes] = await Promise.all([
-                    authService.getProfile(),
-                    projectService.getProjects()
-                ]);
-
-                setUser(userRes.data);
+                const projectsRes = await projectService.getProjects();
                 setProjects(projectsRes.data);
 
                 // Process Heatmap Data
@@ -49,13 +42,6 @@ const Dashboard = () => {
         loadData();
     }, []);
 
-    const getGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return 'Good morning';
-        if (hour < 18) return 'Good afternoon';
-        if (hour < 22) return 'Good evening';
-        return 'Good night';
-    };
 
     // Derived state for heatmap length
     const getWeeks = () => {
@@ -106,8 +92,7 @@ const Dashboard = () => {
             {/* Hero Section */}
             <div className="dashboard-hero">
                 <div className="hero-text">
-                    <h1>{getGreeting()}, {user.username}</h1>
-                    <p>Welcome back to your workspace.</p>
+                    <h1>Your Dashboard</h1>
                 </div>
                 <div className="hero-actions">
                     <button className="action-btn">

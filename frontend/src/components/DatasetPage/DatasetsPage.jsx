@@ -1,19 +1,18 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLaunch } from '../../context/LaunchContext.jsx';
 import { datasetService, projectService } from '../../services/api';
 import { 
     FileSpreadsheet, 
     Trash2, 
-    Eye, 
     Download, 
     Search, 
-    Filter, 
     Folder, 
     PlayCircle, 
     Box, 
-    Plus 
+    Plus,
+    XCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Dialog from '../shared/Modal/Dialog';
@@ -21,7 +20,7 @@ import './DatasetsPage.css';
 
 const DatasetsPage = () => {
     const navigate = useNavigate();
-    const { activeProject, enterArenaWithProject } = useLaunch();
+    const { enterArenaWithProject } = useLaunch();
     const [datasets, setDatasets] = useState([]);
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -31,25 +30,52 @@ const DatasetsPage = () => {
     const [dialogConfig, setDialogConfig] = useState({ isOpen: false });
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchInitialData = async () => {
             try {
-                setLoading(true);
-                const [datasetsRes, projectsRes] = await Promise.all([
-                    datasetService.list(), // Fetch all user datasets
-                    projectService.getProjects()
-                ]);
-                setDatasets(datasetsRes.data);
+                const projectsRes = await projectService.getProjects();
                 setProjects(projectsRes.data);
             } catch (err) {
-                console.error("Failed to load datasets:", err);
-                toast.error("Failed to load datasets");
-            } finally {
-                setLoading(false);
+                console.error("Failed to load projects:", err);
             }
         };
-
-        fetchData();
+        fetchInitialData();
     }, []);
+
+    const fetchDatasets = async () => {
+        try {
+            setLoading(true);
+            const params = {
+                search: searchQuery,
+                sort: sortBy
+            };
+            
+            if (projectFilter !== 'All Projects') {
+                const selectedProj = projects.find(p => p.name === projectFilter);
+                if (selectedProj) params.project_id = selectedProj.id;
+            }
+
+            const res = await datasetService.list(params);
+            setDatasets(res.data);
+        } catch (err) {
+            console.error("Failed to fetch datasets:", err);
+            toast.error("Failed to sync with datasets");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchDatasets();
+        }, 300); // Debounce search
+        return () => clearTimeout(timer);
+    }, [searchQuery, projectFilter, sortBy, projects]);
+
+    const handleClearFilters = () => {
+        setSearchQuery('');
+        setProjectFilter('All Projects');
+        setSortBy('newest');
+    };
 
     const handleDelete = (id) => {
         setDialogConfig({
@@ -84,21 +110,6 @@ const DatasetsPage = () => {
         }
     };
 
-    const filteredDatasets = datasets
-        .filter(d => {
-            const matchesSearch = d.name.toLowerCase().includes(searchQuery.toLowerCase());
-            const project = projects.find(p => p.id === d.project);
-            const matchesProject = projectFilter === 'All Projects' || (project && project.name === projectFilter);
-            return matchesSearch && matchesProject;
-        })
-        .sort((a, b) => {
-            if (sortBy === 'newest') return new Date(b.uploaded_at) - new Date(a.uploaded_at);
-            if (sortBy === 'oldest') return new Date(a.uploaded_at) - new Date(b.uploaded_at);
-            if (sortBy === 'name') return a.name.localeCompare(b.name);
-            if (sortBy === 'size') return b.row_count - a.row_count;
-            return 0;
-        });
-
     const getProjectName = (projectId) => {
         const project = projects.find(p => p.id === projectId);
         return project ? project.name : 'Unknown Project';
@@ -108,24 +119,27 @@ const DatasetsPage = () => {
 
     return (
         <div className="section-container full-page-table">
-            <div className="section-header">
-                <div>
+            <div className="section-header" style={{flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:40}}>
+                <div style={{textAlign:'left'}}>
                     <h1>Dataset Explorer</h1>
                     <p className="subtitle">Manage and explore all your scientific data across workspaces</p>
                 </div>
-                <div className="header-stats" style={{display:'flex', gap:30, marginLeft:'auto', marginRight:40}}>
-                    <div className="stat-mini">
-                        <label style={{fontSize:'0.7rem', textTransform:'uppercase', opacity:0.5, letterSpacing:1}}>Total Records</label>
-                        <div style={{fontSize:'1.2rem', fontWeight:700, color:'var(--primary)'}}>{datasets.reduce((sum, d) => sum + (d.row_count || 0), 0).toLocaleString()}</div>
+                
+                <div style={{display:'flex', alignItems:'center', gap:30}}>
+                    <div className="header-stats" style={{display:'flex', gap:30}}>
+                        <div className="stat-mini">
+                            <label style={{fontSize:'0.7rem', textTransform:'uppercase', opacity:0.5, letterSpacing:1}}>Total Records</label>
+                            <div style={{fontSize:'1.2rem', fontWeight:700, color:'var(--primary)'}}>{datasets.reduce((sum, d) => sum + (d.row_count || 0), 0).toLocaleString()}</div>
+                        </div>
+                        <div className="stat-mini">
+                            <label style={{fontSize:'0.7rem', textTransform:'uppercase', opacity:0.5, letterSpacing:1}}>Est. Storage</label>
+                            <div style={{fontSize:'1.2rem', fontWeight:700, color:'var(--secondary)'}}>{totalSize} MB</div>
+                        </div>
                     </div>
-                    <div className="stat-mini">
-                        <label style={{fontSize:'0.7rem', textTransform:'uppercase', opacity:0.5, letterSpacing:1}}>Est. Storage</label>
-                        <div style={{fontSize:'1.2rem', fontWeight:700, color:'var(--secondary)'}}>{totalSize} MB</div>
-                    </div>
+                    <button className="primary-btn" onClick={() => navigate('/projects')}>
+                        <Plus size={16}/> New Dataset
+                    </button>
                 </div>
-                <button className="primary-btn" onClick={() => navigate('/projects')}>
-                    <Plus size={16}/> New Dataset
-                </button>
             </div>
 
             <div className="data-toolbar" style={{display:'flex', gap:15, marginBottom:25, alignItems:'center', background:'rgba(255,255,255,0.02)', padding:15, borderRadius:12, border:'1px solid rgba(255,255,255,0.05)'}}>
@@ -135,7 +149,7 @@ const DatasetsPage = () => {
                         placeholder="Search by name or metadata..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{width:'100%', padding:'10px 15px 10px 40px', background:'rgba(0,0,0,0.2)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, color:'white'}}
+                        style={{width:'100%', padding:'10px 15px 10px 40px', background:'rgba(0,0,0,0.2)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, color:'white', outline:'none'}}
                     />
                 </div>
                 
@@ -161,6 +175,14 @@ const DatasetsPage = () => {
                         <option value="name">Sort: A-Z</option>
                         <option value="size">Sort: Size (Rows)</option>
                     </select>
+
+                    <button 
+                        className="clear-btn"
+                        onClick={handleClearFilters}
+                        style={{display:'flex', alignItems:'center', gap:8, padding:'0 20px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, color:'var(--text-dim)', cursor:'pointer', transition:'all 0.2s'}}
+                    >
+                        <XCircle size={16}/> Clear Filters
+                    </button>
                 </div>
             </div>
 
@@ -170,7 +192,7 @@ const DatasetsPage = () => {
                         <div className="spin"><Box size={32}/></div>
                         Fetching your datasets...
                     </div>
-                ) : filteredDatasets.length === 0 ? (
+                ) : datasets.length === 0 ? (
                     <div className="empty-state" style={{padding:'80px', textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:20}}>
                         <div style={{width:80, height:80, borderRadius:20, background:'rgba(139, 92, 246, 0.05)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--accent)'}}>
                             <FileSpreadsheet size={40} />
@@ -193,7 +215,7 @@ const DatasetsPage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredDatasets.map(d => (
+                            {datasets.map(d => (
                                 <tr key={d.id} className="dataset-row">
                                     <td>
                                         <div className="table-item-name" style={{display:'flex', alignItems:'center', gap:12}}>
@@ -239,9 +261,10 @@ const DatasetsPage = () => {
                     </table>
                 )}
             </div>
+            
             <div style={{marginTop:20, display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0 10px'}}>
                 <div style={{fontSize:'0.85rem', color:'var(--text-dim)'}}>
-                    Showing <b>{filteredDatasets.length}</b> of <b>{datasets.length}</b> datasets
+                    Showing <b>{datasets.length}</b> datasets
                 </div>
                 <div style={{display:'flex', gap:5}}>
                      <button className="pagination-btn" disabled>Prev</button>
@@ -249,6 +272,7 @@ const DatasetsPage = () => {
                      <button className="pagination-btn" disabled>Next</button>
                 </div>
             </div>
+
             <Dialog 
                 {...dialogConfig}
                 onClose={() => setDialogConfig({ isOpen: false })}
