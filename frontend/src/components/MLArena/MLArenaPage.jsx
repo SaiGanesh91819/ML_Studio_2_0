@@ -508,7 +508,12 @@ ${JSON.stringify(model.config || {}, null, 2)}
                             <div>
                                 <h4 className="report-section-title" style={{marginBottom:15}}>Input Data</h4>
                                 <div style={{maxHeight:350, overflowY:'auto', paddingRight:10}}>
-                                    {features.map(feat => (
+                                    {features.length === 0 ? (
+                                        <div style={{color:'var(--text-dim)', textAlign:'center', padding:'40px 0', border:'1px dashed rgba(255,255,255,0.1)', borderRadius:8}}>
+                                            <p style={{margin:0}}>No feature columns found for this model.</p>
+                                            <p style={{margin:'4px 0 0 0', fontSize:'0.75rem', opacity:0.6}}>This model might have been trained with an older version.</p>
+                                        </div>
+                                    ) : features.map(feat => (
                                         <div key={feat} className="input-group" style={{marginBottom:12}}>
                                             <label style={{fontSize:'0.8rem', opacity:0.8, display:'block', marginBottom:4}}>{feat}</label>
                                             <input 

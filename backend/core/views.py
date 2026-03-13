@@ -527,6 +527,11 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
         
         run.save()
         
+        # Update Experiment config with training parameters
+        exp = run.experiment
+        exp.config = params
+        exp.save()
+        
         # Start actual training in background thread
         thread = threading.Thread(target=self._run_training_process, args=(run.id, dataset_id, params))
         thread.daemon = True
@@ -666,6 +671,16 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
             run.logs += "[System] Model saved to artifacts.\n"
             run.save()
             
+        except Exception as e:
+            print(f"Training failed: {e}")
+            try:
+                run = TrainingRun.objects.get(id=run_id)
+                run.status = 'Failed'
+                run.logs += f"\n[Error] Training failed: {str(e)}\n"
+                run.save()
+            except:
+                pass
+
     @action(detail=True, methods=['post'])
     def predict(self, request, pk=None):
         """Allows testing the model with custom input data."""
@@ -682,18 +697,24 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
             if not input_data:
                 return Response({"error": "No input data provided"}, status=400)
             
-            # Convert to DataFrame
-            df_input = pd.DataFrame([input_data])
+            # Get expected features from config
+            features = run.experiment.config.get('feature_columns', [])
+            if not features:
+                 return Response({"error": "No features defined for this experiment config. Redo training."}, status=400)
             
-            # Prediction logic should mirror training preprocessing (simplified here)
-            # In a real app, you'd save the encoder/scaler too.
-            # For now, we attempt to convert objects to numeric as we did in training.
-            for col in df_input.columns:
-                if df_input[col].dtype == 'object':
-                    # This is a limitation: we don't have the training label encoder.
-                    # As a fallback, we'll try to convert to category-codes or similar.
-                    # Ideally, joblib should have saved a Pipeline.
+            # Ensure input data matches features and is in correct order
+            ordered_data = []
+            for feat in features:
+                val = input_data.get(feat, 0)
+                # Try to cast to float if it looks like a number
+                try:
+                    val = float(val) if val != "" else 0
+                except:
                     pass
+                ordered_data.append(val)
+            
+            # Convert to DataFrame with explicit columns
+            df_input = pd.DataFrame([ordered_data], columns=features)
             
             # 3. Predict
             prediction = model.predict(df_input)
