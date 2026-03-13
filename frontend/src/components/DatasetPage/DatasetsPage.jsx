@@ -116,7 +116,7 @@ const DatasetsPage = () => {
                 <div className="header-stats" style={{display:'flex', gap:30, marginLeft:'auto', marginRight:40}}>
                     <div className="stat-mini">
                         <label style={{fontSize:'0.7rem', textTransform:'uppercase', opacity:0.5, letterSpacing:1}}>Total Records</label>
-                        <div style={{fontSize:'1.2rem', fontWeight:700, color:'var(--accent)'}}>{datasets.reduce((sum, d) => sum + (d.row_count || 0), 0).toLocaleString()}</div>
+                        <div style={{fontSize:'1.2rem', fontWeight:700, color:'var(--primary)'}}>{datasets.reduce((sum, d) => sum + (d.row_count || 0), 0).toLocaleString()}</div>
                     </div>
                     <div className="stat-mini">
                         <label style={{fontSize:'0.7rem', textTransform:'uppercase', opacity:0.5, letterSpacing:1}}>Est. Storage</label>
@@ -200,20 +200,20 @@ const DatasetsPage = () => {
                                             <div className="icon-box-violet">
                                                 <FileSpreadsheet size={16}/>
                                             </div>
-                                            <div style={{display:'flex', flexDirection:'column'}}>
-                                                <span style={{fontWeight:500}}>{d.name}</span>
-                                                <span style={{fontSize:'0.7rem', opacity:0.5}}>UUID: {d.id.toString().slice(0,8)}...</span>
+                                            <div style={{display:'flex', flexDirection:'column', gap:2}}>
+                                                <span style={{fontWeight:500, color:'white'}}>{d.name}</span>
+                                                <span style={{fontSize:'0.7rem', opacity:0.4}}>UUID: {d.id.toString().slice(0,8)}...</span>
                                             </div>
                                         </div>
                                     </td>
                                     <td>
                                         <div className="status-badge" title={getProjectName(d.project)}>
-                                            <Folder size={12} style={{opacity:0.6}}/>
+                                            <Folder size={12} style={{opacity:0.8}}/>
                                             <span className="project-name-cell">{getProjectName(d.project)}</span>
                                         </div>
                                     </td>
-                                    <td>{d.row_count.toLocaleString()}</td>
-                                    <td>{(d.columns || []).length}</td>
+                                    <td style={{color:'rgba(255,255,255,0.8)'}}>{d.row_count.toLocaleString()}</td>
+                                    <td style={{color:'rgba(255,255,255,0.8)'}}>{(d.columns || []).length}</td>
                                     <td>
                                         <div style={{display:'flex', flexDirection:'column'}}>
                                             <span>{new Date(d.uploaded_at).toLocaleDateString()}</span>

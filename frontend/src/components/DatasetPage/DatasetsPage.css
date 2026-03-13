@@ -25,8 +25,8 @@
 
 /* Modern Toolbar */
 .data-toolbar select:focus {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
+    border-color: #8b5cf6 !important;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
 }
 
 /* Table Enhancements */
@@ -78,13 +78,13 @@
 }
 
 .action-pill.primary {
-    background: rgba(139, 92, 246, 0.1);
-    color: var(--accent);
-    border-color: rgba(139, 92, 246, 0.2);
+    background: rgba(139, 92, 246, 0.2);
+    color: #a78bfa;
+    border-color: rgba(139, 92, 246, 0.3);
 }
 
 .action-pill.primary:hover {
-    background: var(--accent);
+    background: #8b5cf6;
     color: white;
 }
 
@@ -116,29 +116,32 @@
 
 /* Pagination */
 .pagination-btn {
-    padding: 6px 14px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    color: var(--text-dim);
+    padding: 8px 18px;
+    background: rgba(255, 255, 255, 0.12); /* Brighter for visibility */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: white; /* High contrast text */
     font-size: 0.85rem;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .pagination-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    background: rgba(139, 92, 246, 0.3);
+    border-color: #8b5cf6;
 }
 
 .pagination-btn.active {
-    background: var(--accent);
+    background: #8b5cf6;
     color: white;
-    border-color: var(--accent);
+    border-color: #8b5cf6;
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
 }
 
 .pagination-btn:disabled {
-    opacity: 0.3;
+    opacity: 0.2;
     cursor: not-allowed;
 }
 
@@ -168,27 +171,54 @@
     border-radius: 8px;
     font-size: 0.8rem;
     font-weight: 500;
-    background: rgba(139, 92, 246, 0.1); /* Vibrant accent background */
-    color: var(--accent);
-    border: 1px solid rgba(139, 92, 246, 0.15);
+    background: rgba(139, 92, 246, 0.15); /* Vibrant violet background */
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.25);
     max-width: 100%;
     transition: all 0.2s;
 }
 
 .status-badge:hover {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: var(--accent);
+    background: rgba(139, 92, 246, 0.25);
+    border-color: #8b5cf6;
 }
 
 .icon-box-violet {
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    background: rgba(139, 92, 246, 0.1);
+    background: rgba(139, 92, 246, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent);
+    color: #a78bfa;
+}
+
+/* Visible Scrollbar */
+.data-table-wrapper::-webkit-scrollbar {
+    height: 8px;
+    display: block !important;
+}
+
+.data-table-wrapper::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.data-table-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.3); /* Violet thumb */
+    border-radius: 10px;
+    border: 2px solid rgba(0, 0, 0, 0.4);
+}
+
+.data-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 92, 246, 0.5);
+}
+
+/* Force visible on Firefox */
+.data-table-wrapper {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(139, 92, 246, 0.3) rgba(0, 0, 0, 0.2) !important;
 }
 
 @keyframes spin {
