@@ -164,7 +164,7 @@ const DatasetsPage = () => {
                 </div>
             </div>
 
-            <div className="data-table-wrapper" style={{background:'rgba(10,10,15,0.4)', borderRadius:16, border:'1px solid rgba(255,255,255,0.05)', overflow:'hidden'}}>
+            <div className="data-table-wrapper" style={{background:'rgba(10,10,15,0.4)', borderRadius:16, border:'1px solid rgba(255,255,255,0.05)', overflowX:'auto'}}>
                 {loading ? (
                     <div className="loading-state" style={{padding:'100px', textAlign:'center', color:'var(--text-dim)', display:'flex', flexDirection:'column', alignItems:'center', gap:15}}>
                         <div className="spin"><Box size={32}/></div>
@@ -197,7 +197,7 @@ const DatasetsPage = () => {
                                 <tr key={d.id} className="dataset-row">
                                     <td>
                                         <div className="table-item-name" style={{display:'flex', alignItems:'center', gap:12}}>
-                                            <div style={{width:32, height:32, borderRadius:8, background:'rgba(59, 130, 246, 0.1)', display:'flex', alignItems:'center', justifyContent:'center', color:'#3b82f6'}}>
+                                            <div className="icon-box-violet">
                                                 <FileSpreadsheet size={16}/>
                                             </div>
                                             <div style={{display:'flex', flexDirection:'column'}}>
@@ -207,9 +207,9 @@ const DatasetsPage = () => {
                                         </div>
                                     </td>
                                     <td>
-                                        <div className="status-badge">
+                                        <div className="status-badge" title={getProjectName(d.project)}>
                                             <Folder size={12} style={{opacity:0.6}}/>
-                                            {getProjectName(d.project)}
+                                            <span className="project-name-cell">{getProjectName(d.project)}</span>
                                         </div>
                                     </td>
                                     <td>{d.row_count.toLocaleString()}</td>

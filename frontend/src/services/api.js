@@ -115,7 +115,8 @@ export const projectService = {
 
 export const datasetService = {
     async list(projectId) {
-        return api.get(`datasets/?project_id=${projectId}`);
+        const url = projectId ? `datasets/?project_id=${projectId}` : 'datasets/';
+        return api.get(url);
     },
     async upload(projectId, file) {
         const formData = new FormData();

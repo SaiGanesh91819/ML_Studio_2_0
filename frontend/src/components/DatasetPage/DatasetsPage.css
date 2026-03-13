@@ -35,6 +35,7 @@
     border-collapse: collapse;
     font-size: 0.9rem;
     text-align: left;
+    min-width: 900px; /* Force horizontal scroll if container is small */
 }
 
 .modern-table th {
@@ -51,6 +52,7 @@
 .modern-table td {
     padding: 16px 20px;
     border-bottom: 1px solid rgba(255,255,255,0.03);
+    vertical-align: middle;
 }
 
 .dataset-row {
@@ -147,6 +149,46 @@
 
 .spin {
     animation: spin 1s linear infinite;
+}
+
+/* Project Name Handling */
+.project-name-cell {
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: rgba(139, 92, 246, 0.1); /* Vibrant accent background */
+    color: var(--accent);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    max-width: 100%;
+    transition: all 0.2s;
+}
+
+.status-badge:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: var(--accent);
+}
+
+.icon-box-violet {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(139, 92, 246, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
 }
 
 @keyframes spin {

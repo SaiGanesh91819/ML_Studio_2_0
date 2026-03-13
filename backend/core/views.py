@@ -111,7 +111,7 @@ class DatasetViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         project_id = self.request.query_params.get('project_id')
-        if project_id:
+        if project_id and project_id != 'undefined':
             return Dataset.objects.filter(project_id=project_id, project__user=self.request.user)
         return Dataset.objects.filter(project__user=self.request.user)
 
