@@ -60,6 +60,9 @@ class ExperimentSerializer(serializers.ModelSerializer):
         return latest_run.id if latest_run else None
 
 class TrainingRunSerializer(serializers.ModelSerializer):
+    experiment_name = serializers.ReadOnlyField(source='experiment.name')
+    project_name = serializers.ReadOnlyField(source='experiment.project.name')
+    
     class Meta:
         model = TrainingRun
         fields = '__all__'

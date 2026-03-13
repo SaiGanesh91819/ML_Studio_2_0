@@ -117,6 +117,18 @@ class DashboardStatsView(APIView):
         )
         heatmap = {str(item['date']): item['count'] for item in heatmap_data}
 
+        # 7. Real Storage Usage
+        user_datasets = Dataset.objects.filter(project__in=user_projects)
+        total_bytes = 0
+        for ds in user_datasets:
+            try:
+                total_bytes += ds.file.size
+            except:
+                pass
+        
+        storage_gb = round(total_bytes / (1024 * 1024 * 1024), 2)
+        storage_usage_pct = min(int((storage_gb / 1024) * 100), 100) # 1TB limit
+
         return Response({
             'stats': [
                 { 'id': 1, 'label': 'Active Projects', 'value': str(active_projects_count), 'icon': 'Box', 'color': '#3b82f6' },
@@ -128,9 +140,33 @@ class DashboardStatsView(APIView):
             'heatmap': heatmap,
             'resources': [
                 { 'name': 'GPU Quota (A100)', 'usage': min(int(compute_hours/1.2 * 100), 100) if compute_hours > 0 else 0, 'limit': '120h', 'used': f"{compute_hours}h" },
-                { 'name': 'Storage (SSD)', 'usage': 12, 'limit': '1TB', 'used': '124GB' },
-                { 'name': 'API Requests', 'usage': 4, 'limit': '100k', 'used': '4.2k' }
+                { 'name': 'Storage (SSD)', 'usage': storage_usage_pct, 'limit': '1TB', 'used': f"{storage_gb}GB" },
+                { 'name': 'API Requests', 'usage': (all_user_runs.count() % 100), 'limit': '100k', 'used': f"{all_user_runs.count() * 1.2:.1f}k" }
             ]
+        })
+
+class ProfileUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def patch(self, request):
+        user = request.user
+        data = request.data
+        
+        if 'username' in data:
+            user.username = data['username']
+        if 'email' in data:
+            user.email = data['email']
+        if 'display_name' in data:
+            names = data['display_name'].split(' ', 1)
+            user.first_name = names[0]
+            user.last_name = names[1] if len(names) > 1 else ""
+            
+        user.save()
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "display_name": f"{user.first_name} {user.last_name}".strip()
         })
 
 class RegisterView(generics.CreateAPIView):

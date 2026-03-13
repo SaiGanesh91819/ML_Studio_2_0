@@ -81,6 +81,10 @@ export const authService = {
         return api.get('auth/me/');
     },
 
+    async updateProfile(data) {
+        return api.patch('auth/update/', data);
+    },
+
     isAuthenticated() {
         return !!localStorage.getItem('access_token');
     }
@@ -178,8 +182,8 @@ export const trainingService = {
     async getRunStatus(runId) {
         return api.get(`runs/${runId}/`);
     },
-    async listRuns(experimentId) {
-        return api.get(`runs/?experiment_id=${experimentId}`);
+    async listRuns(params = {}) {
+        return api.get('runs/', { params });
     },
     async predict(runId, inputData) {
         return api.post(`runs/${runId}/predict/`, { input_data: inputData });
