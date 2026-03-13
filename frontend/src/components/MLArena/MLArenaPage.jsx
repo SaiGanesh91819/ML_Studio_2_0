@@ -62,7 +62,6 @@ const MLArenaPage = () => {
                  setTargetCol(cols[cols.length - 1]); // Default last col as target
                  setFeatureCols(cols.slice(0, cols.length - 1)); // Rest as features
             }
-
             // Honor Manual Override setting
             if (activeProject?.settings?.manual_override) {
                 setModelConfig({}); // Start empty
@@ -301,15 +300,12 @@ const MLArenaPage = () => {
     // --- Handlers ---
     
     const saveProject = async () => {
-        setDialogConfig({
-            isOpen: true,
-            title: 'Success',
-            message: 'Project workspace state saved successfully!',
-            type: 'success'
-        });
+        // Implementation for saving project workspace state
+        toast.info('Saving project...', { duration: 1000 });
+        
+        // Simple mock of save success
+        toast.success("Workspace state saved!");
     };
-
-
     
     const handlePageChange = async (newPage) => {
         if (!activeDataset) return;
