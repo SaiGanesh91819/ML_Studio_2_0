@@ -180,6 +180,9 @@ export const trainingService = {
     },
     async listRuns(experimentId) {
         return api.get(`runs/?experiment_id=${experimentId}`);
+    },
+    async predict(runId, inputData) {
+        return api.post(`runs/${runId}/predict/`, { input_data: inputData });
     }
 };
 

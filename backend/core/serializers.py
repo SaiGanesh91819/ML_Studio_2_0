@@ -38,10 +38,26 @@ class DatasetSerializer(serializers.ModelSerializer):
             return None
 
 class ExperimentSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField()
+    metrics = serializers.SerializerMethodField()
+    latest_run_id = serializers.SerializerMethodField()
+
     class Meta:
         model = Experiment
         fields = '__all__'
         read_only_fields = ('created_at', 'updated_at')
+
+    def get_status(self, obj):
+        latest_run = obj.runs.order_by('-created_at').first()
+        return latest_run.status if latest_run else "Pending"
+
+    def get_metrics(self, obj):
+        latest_run = obj.runs.order_by('-created_at').first()
+        return latest_run.metrics if latest_run else {}
+
+    def get_latest_run_id(self, obj):
+        latest_run = obj.runs.order_by('-created_at').first()
+        return latest_run.id if latest_run else None
 
 class TrainingRunSerializer(serializers.ModelSerializer):
     class Meta:

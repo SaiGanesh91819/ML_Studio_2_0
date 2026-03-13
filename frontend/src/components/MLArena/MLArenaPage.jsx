@@ -115,6 +115,10 @@ const MLArenaPage = () => {
     const [totalRows, setTotalRows] = useState(0);
     const [isEditing, setIsEditing] = useState(false);
     const [editData, setEditData] = useState([]); // Full data for editing
+    const [testModel, setTestModel] = useState(null); // Model currently being tested
+    const [testInput, setTestInput] = useState({});
+    const [predictionResult, setPredictionResult] = useState(null);
+    const [isPredicting, setIsPredicting] = useState(false);
     const pageSize = 50;
 
     // --- Refs ---
@@ -366,6 +370,10 @@ ${JSON.stringify(model.config || {}, null, 2)}
 
     const renderReportModal = () => {
         if (!reportModel) return null;
+        const isClassification = ['logistic_regression', 'random_forest', 'svc'].includes(reportModel.model_type);
+        const metrics = reportModel.metrics || {};
+        const cm = metrics.confusion_matrix || [[0, 0], [0, 0]];
+
         return (
             <div className="details-modal-overlay" onClick={() => setReportModel(null)} style={{zIndex: 2000}}>
                 <div className="details-modal-content" style={{maxWidth:600, width:'90%'}} onClick={e => e.stopPropagation()}>
@@ -382,43 +390,74 @@ ${JSON.stringify(model.config || {}, null, 2)}
                         <button className="clean-icon-btn" onClick={() => setReportModel(null)}><X size={20}/></button>
                     </div>
                     <div className="details-modal-body" style={{padding: '24px 32px'}}>
-                        <div className="report-grid" style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:15, marginBottom:30}}>
-                            <div className="metric-box status-accent">
-                                <label>Accuracy</label>
-                                <div className="metric-val">{((reportModel.metrics?.accuracy || 0) * 100).toFixed(1)}%</div>
+                        {isClassification ? (
+                            <div className="report-grid" style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:15, marginBottom:30}}>
+                                <div className="metric-box status-accent">
+                                    <label>Accuracy</label>
+                                    <div className="metric-val">{((metrics.accuracy || 0) * 100).toFixed(1)}%</div>
+                                </div>
+                                <div className="metric-box status-success">
+                                    <label>F1 Score</label>
+                                    <div className="metric-val">{(metrics.f1_score || 0).toFixed(3)}</div>
+                                </div>
+                                <div className="metric-box status-info">
+                                    <label>Precision</label>
+                                    <div className="metric-val">{(metrics.precision || 0).toFixed(3)}</div>
+                                </div>
+                                <div className="metric-box status-warning">
+                                    <label>Recall</label>
+                                    <div className="metric-val">{(metrics.recall || 0).toFixed(3)}</div>
+                                </div>
                             </div>
-                            <div className="metric-box status-success">
-                                <label>F1 Score</label>
-                                <div className="metric-val">{(reportModel.metrics?.f1_score || 0).toFixed(3)}</div>
+                        ) : (
+                            <div className="report-grid" style={{display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:15, marginBottom:30}}>
+                                <div className="metric-box status-accent">
+                                    <label>R² Score</label>
+                                    <div className="metric-val">{(metrics.r2 || 0).toFixed(4)}</div>
+                                </div>
+                                <div className="metric-box status-warning">
+                                    <label>MSE (Error)</label>
+                                    <div className="metric-val">{(metrics.mse || 0).toFixed(4)}</div>
+                                </div>
                             </div>
-                            <div className="metric-box status-info">
-                                <label>Precision</label>
-                                <div className="metric-val">{(reportModel.metrics?.precision || 0).toFixed(3)}</div>
-                            </div>
-                            <div className="metric-box status-warning">
-                                <label>Recall</label>
-                                <div className="metric-val">{(reportModel.metrics?.recall || 0).toFixed(3)}</div>
-                            </div>
-                        </div>
+                        )}
 
                         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:25, marginBottom:30}}>
                             <div>
-                                <h4 className="report-section-title">Confusion Matrix</h4>
-                                <div className="confusion-matrix-wrapper">
-                                    <div className="cm-grid">
-                                        <div className="cm-cell header"></div>
-                                        <div className="cm-cell header">Pred P</div>
-                                        <div className="cm-cell header">Pred N</div>
-                                        
-                                        <div className="cm-cell header">True P</div>
-                                        <div className="cm-cell value tp" title="True Positive">{Math.floor(Math.random() * 50) + 100}</div>
-                                        <div className="cm-cell value fn" title="False Negative">{Math.floor(Math.random() * 10)}</div>
-                                        
-                                        <div className="cm-cell header">True N</div>
-                                        <div className="cm-cell value fp" title="False Positive">{Math.floor(Math.random() * 10)}</div>
-                                        <div className="cm-cell value tn" title="True Negative">{Math.floor(Math.random() * 100) + 200}</div>
-                                    </div>
-                                </div>
+                                {isClassification ? (
+                                    <>
+                                        <h4 className="report-section-title">Confusion Matrix</h4>
+                                        <div className="confusion-matrix-wrapper">
+                                            <div className="cm-grid">
+                                                <div className="cm-cell header"></div>
+                                                <div className="cm-cell header">Pred P</div>
+                                                <div className="cm-cell header">Pred N</div>
+                                                
+                                                <div className="cm-cell header">True P</div>
+                                                <div className="cm-cell value tp" title="True Positive">{cm[0][0]}</div>
+                                                <div className="cm-cell value fn" title="False Negative">{cm[0][1]}</div>
+                                                
+                                                <div className="cm-cell header">True N</div>
+                                                <div className="cm-cell value fp" title="False Positive">{cm[1][0]}</div>
+                                                <div className="cm-cell value tn" title="True Negative">{cm[1][1]}</div>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h4 className="report-section-title">Regression Metrics</h4>
+                                        <div className="params-list-mini">
+                                            <div className="mini-param-row">
+                                                <span className="param-k">RMSE</span>
+                                                <span className="param-v">{(metrics.rmse || 0).toFixed(4)}</span>
+                                            </div>
+                                            <div className="mini-param-row">
+                                                <span className="param-k">MAE</span>
+                                                <span className="param-v">{(metrics.mae || 0).toFixed(4)}</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                             <div>
                                 <h4 className="report-section-title">Model Parameters</h4>
@@ -438,6 +477,94 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                 <Download size={18}/> Export Results (.txt)
                             </button>
                             <button className="secondary-btn-report" onClick={() => setReportModel(null)}>Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+ 
+    const renderTestModelModal = () => {
+        if (!testModel) return null;
+        const features = testModel.config?.feature_columns || [];
+        
+        return (
+            <div className="details-modal-overlay" onClick={() => setTestModel(null)} style={{zIndex: 2000}}>
+                <div className="details-modal-content" style={{maxWidth:700, width:'90%'}} onClick={e => e.stopPropagation()}>
+                    <div className="details-modal-header">
+                        <div style={{display:'flex', alignItems:'center', gap:12}}>
+                            <div style={{width:40, height:40, borderRadius:8, background:'rgba(139, 92, 246, 0.1)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--accent)'}}>
+                                <PlayCircle size={20}/>
+                            </div>
+                            <div>
+                                <h2 style={{margin:0, fontSize:'1.1rem'}}>Test Model: {testModel.name}</h2>
+                                <p style={{margin:0, fontSize:'0.8rem', opacity: 0.6}}>Input manual samples to check results</p>
+                            </div>
+                        </div>
+                        <button className="clean-icon-btn" onClick={() => setTestModel(null)}><X size={20}/></button>
+                    </div>
+                    <div className="details-modal-body" style={{padding: '24px 32px'}}>
+                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:30}}>
+                            <div>
+                                <h4 className="report-section-title" style={{marginBottom:15}}>Input Data</h4>
+                                <div style={{maxHeight:350, overflowY:'auto', paddingRight:10}}>
+                                    {features.map(feat => (
+                                        <div key={feat} className="input-group" style={{marginBottom:12}}>
+                                            <label style={{fontSize:'0.8rem', opacity:0.8, display:'block', marginBottom:4}}>{feat}</label>
+                                            <input 
+                                                type="text"
+                                                placeholder={`Enter ${feat}...`}
+                                                value={testInput[feat] || ""}
+                                                onChange={(e) => setTestInput({...testInput, [feat]: e.target.value})}
+                                                style={{width:'100%', padding:8, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:6, color:'white'}}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                                <button 
+                                    className="primary-btn huge" 
+                                    style={{width:'100%', marginTop:20}} 
+                                    onClick={handlePredict}
+                                    disabled={isPredicting}
+                                >
+                                    {isPredicting ? 'Predicting...' : 'Predict Result'}
+                                </button>
+                            </div>
+
+                            <div style={{background:'rgba(255,255,255,0.02)', borderRadius:12, padding:20, border:'1px solid rgba(255,255,255,0.05)', display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', textAlign:'center', minHeight:200}}>
+                                {!predictionResult ? (
+                                    <div style={{opacity:0.4}}>
+                                        <Layers size={40} style={{marginBottom:15}}/>
+                                        <p>Enter features and click predict to see results</p>
+                                    </div>
+                                ) : (
+                                    <div style={{animation:'fadeIn 0.3s', width:'100%'}}>
+                                        <h4 className="report-section-title" style={{marginBottom:24}}>Prediction Result</h4>
+                                        <div style={{fontSize:'3rem', fontWeight:800, color:'var(--accent)', textShadow:'0 0 20px rgba(139, 92, 246, 0.4)', marginBottom:10}}>
+                                            {typeof predictionResult.prediction === 'number' && predictionResult.prediction % 1 !== 0 
+                                                ? predictionResult.prediction.toFixed(4) 
+                                                : predictionResult.prediction}
+                                        </div>
+                                        
+                                        {predictionResult.probability && (
+                                            <div style={{marginTop:20, textAlign:'left', width:'100%'}}>
+                                                <p style={{fontSize:'0.8rem', opacity:0.6, marginBottom:10}}>Probabilities:</p>
+                                                {predictionResult.probability.map((p, i) => (
+                                                    <div key={i} style={{marginBottom:8}}>
+                                                        <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', marginBottom:4}}>
+                                                            <span>Class {i}</span>
+                                                            <span>{(p * 100).toFixed(1)}%</span>
+                                                        </div>
+                                                        <div style={{height:4, background:'rgba(255,255,255,0.1)', borderRadius:2, overflow:'hidden', width:'100%'}}>
+                                                            <div style={{height:'100%', width:`${p*100}%`, background:'var(--accent)'}} />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -514,6 +641,33 @@ ${JSON.stringify(model.config || {}, null, 2)}
             console.error(err);
             addLog(`[ERROR] Stats/Correlation failed: ${err.message}`);
             toast.error("Failed to generate correlation matrix");
+        }
+    };
+ 
+    const handlePredict = async () => {
+        if (!testModel || !testModel.latest_run_id) {
+            toast.error("No trained run found for this model");
+            return;
+        }
+        
+        setIsPredicting(true);
+        try {
+            // Pre-process input: convert strings to numbers where possible
+            const processedInput = {};
+            Object.entries(testInput).forEach(([k, v]) => {
+                processedInput[k] = isNaN(v) || v === "" ? v : parseFloat(v);
+            });
+            
+            const res = await trainingService.predict(testModel.latest_run_id, processedInput);
+            if (res.data) {
+                setPredictionResult(res.data);
+                toast.success("Prediction complete!");
+            }
+        } catch (err) {
+            console.error("Prediction failed", err);
+            toast.error(`Prediction failed: ${err.message}`);
+        } finally {
+            setIsPredicting(false);
         }
     };
 
@@ -856,7 +1010,7 @@ ${JSON.stringify(model.config || {}, null, 2)}
                         <button className="primary-btn huge" onClick={handleRunTraining} disabled={isTraining}>
                             <Play size={24} fill="currentColor" /> {isTraining ? 'Training...' : 'Start Training'}
                         </button>
-                        <button className="text-btn" onClick={() => setIsConfigured(false)}>Back to Configuration</button>
+                        <button className="text-btn" onClick={() => { setIsConfigured(false); setActiveRun(null); }}>Back to Configuration</button>
                     </div>
                 </div>
             );
@@ -1446,7 +1600,15 @@ ${JSON.stringify(model.config || {}, null, 2)}
 
                                         {modelMenuOpenId === exp.id && (
                                             <div className="model-context-menu" onClick={e => e.stopPropagation()}>
-                                                <button onClick={() => { toast.info('Inference UI coming soon!'); setModelMenuOpenId(null); }}>
+                                                <button onClick={() => { 
+                                                    setTestModel(exp); 
+                                                    // Initialize testInput with feature names
+                                                    const initialInput = {};
+                                                    (exp.config?.feature_columns || []).forEach(col => initialInput[col] = "");
+                                                    setTestInput(initialInput);
+                                                    setPredictionResult(null);
+                                                    setModelMenuOpenId(null); 
+                                                }}>
                                                     <PlayCircle size={14}/> Test Model
                                                 </button>
                                                 <button onClick={() => { setReportModel(exp); setModelMenuOpenId(null); }}>
@@ -1731,6 +1893,7 @@ ${JSON.stringify(model.config || {}, null, 2)}
                 </div>
 
                 {renderReportModal()}
+                {renderTestModelModal()}
             </div>
             
             {showPreprocessing && (

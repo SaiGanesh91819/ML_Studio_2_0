@@ -92,7 +92,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR, SVC
-from sklearn.metrics import accuracy_score, mean_squared_error, r2_score, classification_report
+from sklearn.metrics import (
+    accuracy_score, mean_squared_error, r2_score, 
+    precision_score, recall_score, f1_score, confusion_matrix,
+    mean_absolute_error
+)
 import joblib
 import io
 import os
@@ -614,16 +618,40 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
             run.save()
             
             # 4. Evaluate
-            predictions = model.predict(X_test)
-            metrics = {}
             if isinstance(model, (LogisticRegression, RandomForestClassifier, SVC)):
-                accuracy = accuracy_score(y_test, predictions)
-                metrics = {"accuracy": accuracy}
+                y_pred = model.predict(X_test)
+                accuracy = accuracy_score(y_test, y_pred)
+                
+                # Use 'weighted' for multiclass support
+                precision = precision_score(y_test, y_pred, average='weighted', zero_division=0)
+                recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
+                f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
+                
+                cm = confusion_matrix(y_test, y_pred)
+                
+                metrics = {
+                    "accuracy": float(accuracy),
+                    "precision": float(precision),
+                    "recall": float(recall),
+                    "f1_score": float(f1),
+                    "confusion_matrix": cm.tolist()
+                }
+                
                 run.logs += f"[Metrics] Accuracy: {accuracy:.4f}\n"
+                run.logs += f"[Metrics] F1 Score: {f1:.4f}\n"
             else:
-                mse = mean_squared_error(y_test, predictions)
-                r2 = r2_score(y_test, predictions)
-                metrics = {"mse": mse, "r2": r2}
+                y_pred = model.predict(X_test)
+                mse = mean_squared_error(y_test, y_pred)
+                rmse = np.sqrt(mse)
+                mae = mean_absolute_error(y_test, y_pred)
+                r2 = r2_score(y_test, y_pred)
+                
+                metrics = {
+                    "mse": float(mse),
+                    "rmse": float(rmse),
+                    "mae": float(mae),
+                    "r2": float(r2)
+                }
                 run.logs += f"[Metrics] MSE: {mse:.4f}, R2: {r2:.4f}\n"
             
             run.metrics = metrics
@@ -638,12 +666,48 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
             run.logs += "[System] Model saved to artifacts.\n"
             run.save()
             
+    @action(detail=True, methods=['post'])
+    def predict(self, request, pk=None):
+        """Allows testing the model with custom input data."""
+        run = self.get_object()
+        if not run.model_file:
+            return Response({"error": "Model not found for this run"}, status=404)
+        
+        try:
+            # 1. Load Model
+            model = joblib.load(run.model_file.path)
+            
+            # 2. Prepare Input
+            input_data = request.data.get('input_data', {})
+            if not input_data:
+                return Response({"error": "No input data provided"}, status=400)
+            
+            # Convert to DataFrame
+            df_input = pd.DataFrame([input_data])
+            
+            # Prediction logic should mirror training preprocessing (simplified here)
+            # In a real app, you'd save the encoder/scaler too.
+            # For now, we attempt to convert objects to numeric as we did in training.
+            for col in df_input.columns:
+                if df_input[col].dtype == 'object':
+                    # This is a limitation: we don't have the training label encoder.
+                    # As a fallback, we'll try to convert to category-codes or similar.
+                    # Ideally, joblib should have saved a Pipeline.
+                    pass
+            
+            # 3. Predict
+            prediction = model.predict(df_input)
+            
+            # 4. Handle probability if possible
+            probability = None
+            if hasattr(model, 'predict_proba'):
+                prob_res = model.predict_proba(df_input)
+                probability = prob_res.tolist()[0]
+                
+            return Response({
+                "prediction": prediction.tolist()[0],
+                "probability": probability
+            })
+            
         except Exception as e:
-            print(f"Training failed: {e}")
-            try:
-                run = TrainingRun.objects.get(id=run_id)
-                run.status = 'Failed'
-                run.logs += f"\n[Error] Training failed: {str(e)}\n"
-                run.save()
-            except:
-                pass
+            return Response({"error": str(e)}, status=500)
