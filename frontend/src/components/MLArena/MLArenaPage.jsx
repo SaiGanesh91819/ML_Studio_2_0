@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useLaunch } from '../../context/LaunchContext.jsx';
 import { datasetService, trainingService, projectService, experimentService } from '../../services/api'; 
 // import PreprocessingModal from './PreprocessingModal'; 
@@ -26,6 +26,7 @@ const MLArenaPage = () => {
 
     // --- Data States ---
     const [datasets, setDatasets] = useState([]);
+    const [experiments, setExperiments] = useState([]);
     const [activeDataset, setActiveDataset] = useState(null);
     const [stats, setStats] = useState(null); 
     const [previewData, setPreviewData] = useState([]); 
@@ -50,12 +51,18 @@ const MLArenaPage = () => {
                  setTargetCol(cols[cols.length - 1]); // Default last col as target
                  setFeatureCols(cols.slice(0, cols.length - 1)); // Rest as features
             }
-            if (selectedAlgo.id.includes('forest')) setModelConfig({ n_estimators: 100, max_depth: 10 });
-            else if (selectedAlgo.id.includes('regression')) setModelConfig({ learning_rate: 0.01, epochs: 100 });
-            else if (selectedAlgo.id.includes('svc')) setModelConfig({ C: 1.0, kernel: 'rbf' });
-            else setModelConfig({}); 
-        }
-    }, [selectedAlgo]);
+            if (selectedAlgo.id === 'linear_regression') {
+                setModelConfig({ fit_intercept: true, copy_X: true, random_state: 42 });
+            } else if (selectedAlgo.id === 'logistic_regression') {
+                setModelConfig({ C: 1.0, solver: 'lbfgs', penalty: 'l2', max_iter: 1000, random_state: 42 });
+            } else if (selectedAlgo.id === 'random_forest') {
+                setModelConfig({ n_estimators: 100, max_depth: 10, criterion: 'gini', min_samples_split: 2, max_features: 'sqrt', random_state: 42 });
+            } else if (selectedAlgo.id === 'svc' || selectedAlgo.id === 'svc_classifier') {
+                setModelConfig({ C: 1.0, kernel: 'rbf', gamma: 'scale', degree: 3, random_state: 42 });
+            } else {
+                setModelConfig({ random_state: 42 });
+            }        }
+    }, [selectedAlgo, activeDataset]);
     const [isLoadingBarActive, setIsLoadingBarActive] = useState(false);
     const [isDatasetsOpen, setIsDatasetsOpen] = useState(true);
     const [isModelsOpen, setIsModelsOpen] = useState(true);
@@ -84,20 +91,66 @@ const MLArenaPage = () => {
     const fileInputRef = useRef(null);
 
     // --- Loading Data ---
-    const addLog = (message) => setLogs(prev => [...prev, message]);
+    const addLog = useCallback((message) => setLogs(prev => [...prev, message]), []);
 
-    const loadDatasets = async () => {
+    const handleDatasetSelect = useCallback(async (dataset, showSheet = true) => {
+        setActiveDataset(dataset);
+        setSelectedTask(null);
+        setSelectedProblem(null);
+        setSelectedAlgo(null);
+        setSelectedColumnForStats('');
+        
+        if (dataset.statistics && Object.keys(dataset.statistics).length > 0) {
+            setStats(dataset.statistics);
+        } else {
+            setStats(null);
+        }
+        
+        setLastSaved(dataset.updated_at || null);
+
         try {
-            const res = await datasetService.list(activeProject.id);
+            setCurrentPage(1); // Reset to page 1
+            const res = await datasetService.preview(dataset.id, 1, pageSize); 
+            // Backend returns { data: [...], total: ... }
+            const rows = res.data.data || res.data.results || res.data; 
+            const total = res.data.total || 0;
+            
+            if (Array.isArray(rows)) {
+                setPreviewData(rows); 
+                setTotalRows(total);
+            } else {
+                setPreviewData([]);
+                setTotalRows(0);
+            }
+            if (showSheet) setShowDataSheet(true);
+        } catch (err) {
+            console.error("Failed to load preview", err);
+            addLog(`[ERROR] Failed to load preview: ${err.message}`);
+        }
+    }, [addLog, pageSize]);
+
+    const loadDatasets = useCallback(async () => {
+        try {
+            const res = await datasetService.list(activeProject?.id);
             setDatasets(res.data);
         } catch (err) {
             console.error("Failed to load datasets", err);
         }
-    };
+    }, [activeProject?.id]);
+
+    const loadExperiments = useCallback(async () => {
+        try {
+            const res = await experimentService.list(activeProject?.id);
+            setExperiments(res.data);
+        } catch (err) {
+            console.error("Failed to load experiments", err);
+        }
+    }, [activeProject?.id]);
 
     useEffect(() => {
         if (activeProject) {
             setDatasets([]);
+            setExperiments([]);
             setActiveDataset(null);
             setStats(null);
             setSelectedTask(null);
@@ -108,15 +161,16 @@ const MLArenaPage = () => {
             setCorrelationData(null);
             setLogs(["[System] Connecting to workspace interface..."]);
             loadDatasets();
+            loadExperiments();
         }
-    }, [activeProject]);
+    }, [activeProject, loadDatasets, loadExperiments]);
 
     // Auto-select first dataset if available and none selected
     useEffect(() => {
         if (datasets.length > 0 && !activeDataset) {
             handleDatasetSelect(datasets[0], false);
         }
-    }, [datasets, activeDataset]);
+    }, [datasets, activeDataset, handleDatasetSelect]);
 
     // --- Resizing Logic (State-based) ---
     const startResize = (e, panel) => {
@@ -156,41 +210,7 @@ const MLArenaPage = () => {
         alert("Project saved successfully!");
     };
 
-    const handleDatasetSelect = async (dataset, showSheet = true) => {
-        setActiveDataset(dataset);
-        setSelectedTask(null);
-        setSelectedProblem(null);
-        setSelectedAlgo(null);
-        setSelectedColumnForStats('');
-        
-        if (dataset.statistics && Object.keys(dataset.statistics).length > 0) {
-            setStats(dataset.statistics);
-        } else {
-            setStats(null);
-        }
-        
-        setLastSaved(dataset.updated_at || null);
 
-        try {
-            setCurrentPage(1); // Reset to page 1
-            const res = await datasetService.preview(dataset.id, 1, pageSize); 
-            // Backend returns { data: [...], total: ... }
-            const rows = res.data.data || res.data.results || res.data; 
-            const total = res.data.total || 0;
-            
-            if (Array.isArray(rows)) {
-                setPreviewData(rows); 
-                setTotalRows(total);
-            } else {
-                setPreviewData([]);
-                setTotalRows(0);
-            }
-            if (showSheet) setShowDataSheet(true);
-        } catch (err) {
-            console.error("Failed to load preview", err);
-            addLog(`[ERROR] Failed to load preview: ${err.message}`);
-        }
-    };
     
     const handlePageChange = async (newPage) => {
         if (!activeDataset) return;
@@ -317,10 +337,22 @@ const MLArenaPage = () => {
         const interval = setInterval(async () => {
             try {
                 const res = await trainingService.getRunStatus(runId);
-                if (res.data.logs) setLogs(res.data.logs);
+                if (res.data.logs) {
+                    // Split logs by newline and update
+                    const newLogs = res.data.logs.split('\n').filter(l => l.trim());
+                    setLogs(newLogs);
+                }
                 if (res.data.status === 'Completed' || res.data.status === 'Failed') {
                     setIsTraining(false);
                     clearInterval(interval);
+                    if (res.data.status === 'Completed') {
+                        addLog("[SUCCESS] Training completed successfully.");
+                        toast.success("Training completed!");
+                        loadExperiments(); // Refresh list to show the new model
+                    } else {
+                        addLog("[ERROR] Training failed on server.");
+                        toast.error("Training failed.");
+                    }
                 }
             } catch (err) {
                 console.error("Polling error", err);
@@ -666,19 +698,108 @@ const MLArenaPage = () => {
 
                          <div className="config-divider" style={{margin:'20px 0', borderBottom:'1px solid rgba(255,255,255,0.1)'}}></div>
 
-                        <h3>Hyperparameters</h3>
-                        <div className="params-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
-                            {Object.entries(modelConfig).map(([key, val]) => (
-                                <div key={key} className="input-group">
-                                    <label style={{textTransform:'capitalize'}}>{key.replace('_', ' ')}</label>
-                                    <input 
-                                        type={typeof val === 'number' ? 'number' : 'text'}
-                                        value={val}
-                                        onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.type === 'number' ? parseFloat(e.target.value) : e.target.value})}
-                                        style={{width:'100%', padding:'8px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', color:'#fff'}}
-                                    />
-                                </div>
-                            ))}
+                        <h3 style={{marginTop:30}}>Hyperparameters</h3>
+                        <div className="params-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:15}}>
+                            {Object.entries(modelConfig).map(([key, val]) => {
+                                const label = key.replace('_', ' ');
+                                
+                                // Specialized Inputs for Experts
+                                if (key === 'penalty') {
+                                    return (
+                                        <div key={key} className="input-group">
+                                            <label style={{textTransform:'capitalize'}}>{label}</label>
+                                            <select 
+                                                value={val}
+                                                onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.value})}
+                                                style={{width:'100%', padding:'8px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', color:'#fff'}}
+                                            >
+                                                <option value="l2">L2 (Ridge)</option>
+                                                <option value="l1">L1 (Lasso)</option>
+                                                <option value="none">None</option>
+                                            </select>
+                                        </div>
+                                    );
+                                }
+                                
+                                if (key === 'solver') {
+                                    const solvers = selectedAlgo.id === 'logistic_regression' 
+                                        ? ['lbfgs', 'liblinear', 'newton-cg', 'newton-cholesky', 'sag', 'saga']
+                                        : ['lbfgs', 'liblinear'];
+                                    return (
+                                        <div key={key} className="input-group">
+                                            <label style={{textTransform:'capitalize'}}>{label}</label>
+                                            <select 
+                                                value={val}
+                                                onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.value})}
+                                                style={{width:'100%', padding:'8px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', color:'#fff'}}
+                                            >
+                                                {solvers.map(s => <option key={s} value={s}>{s}</option>)}
+                                            </select>
+                                        </div>
+                                    );
+                                }
+
+                                if (key === 'kernel') {
+                                    return (
+                                        <div key={key} className="input-group">
+                                            <label style={{textTransform:'capitalize'}}>{label}</label>
+                                            <select 
+                                                value={val}
+                                                onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.value})}
+                                                style={{width:'100%', padding:'8px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', color:'#fff'}}
+                                            >
+                                                <option value="rbf">RBF (Gaussian)</option>
+                                                <option value="linear">Linear</option>
+                                                <option value="poly">Polynomial</option>
+                                                <option value="sigmoid">Sigmoid</option>
+                                            </select>
+                                        </div>
+                                    );
+                                }
+                                
+                                if (key === 'criterion') {
+                                    return (
+                                        <div key={key} className="input-group">
+                                            <label style={{textTransform:'capitalize'}}>{label}</label>
+                                            <select 
+                                                value={val}
+                                                onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.value})}
+                                                style={{width:'100%', padding:'8px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', color:'#fff'}}
+                                            >
+                                                <option value="gini">Gini Impurity</option>
+                                                <option value="entropy">Information Gain (Entropy)</option>
+                                                {selectedAlgo.id === 'random_forest' && <option value="log_loss">Log Loss</option>}
+                                            </select>
+                                        </div>
+                                    );
+                                }
+
+                                if (typeof val === 'boolean') {
+                                    return (
+                                        <div key={key} className="input-group" style={{display:'flex', alignItems:'center', gap:10, paddingTop:24}}>
+                                            <input 
+                                                type="checkbox"
+                                                checked={val}
+                                                onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.checked})}
+                                                style={{width:18, height:18, accentColor:'var(--accent)'}}
+                                            />
+                                            <label style={{textTransform:'capitalize', cursor:'pointer'}}>{label}</label>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div key={key} className="input-group">
+                                        <label style={{textTransform:'capitalize'}}>{label}</label>
+                                        <input 
+                                            type={typeof val === 'number' ? 'number' : 'text'}
+                                            value={val}
+                                            onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value})}
+                                            style={{width:'100%', padding:'8px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', color:'#fff'}}
+                                        />
+                                    </div>
+                                );
+                            })}
                         </div>
 
                         <div style={{marginTop: 30, textAlign:'center'}}>
@@ -866,8 +987,44 @@ const MLArenaPage = () => {
                         <h3 style={{margin: 0, display: 'flex', alignItems: 'center'}}><Layers size={14} style={{marginRight:6}}/> Models Trained</h3>
                     </div>
                     {isModelsOpen && (
-                        <div className="panel-content" style={{flex: 'none', overflowY: 'visible', paddingBottom: 10}}>
-                            <div className="empty-state">No models trained yet</div>
+                        <div className="panel-content" style={{flex: 'none', overflowY: 'visible', paddingBottom: 10, background: 'rgba(0,0,0,0.2)'}}>
+                            {experiments.length === 0 ? <div className="empty-state">No models trained yet</div> : (
+                            <ul className="file-list" style={{listStyle: 'none', padding: 0, margin: 0}}>
+                                {experiments.map(exp => (
+                                    <li 
+                                        key={exp.id} 
+                                        style={{
+                                            display: 'flex', 
+                                            flexDirection: 'column',
+                                            padding: '10px 12px',
+                                            cursor: 'pointer',
+                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                            transition: 'background 0.2s',
+                                            gap: 4
+                                        }}
+                                        className="model-item"
+                                    >
+                                        <div style={{display:'flex', alignItems:'center', gap: 8}}>
+                                            <Layers size={14} style={{flexShrink:0, color: 'var(--secondary)'}}/>
+                                            <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontSize:'0.85rem', fontWeight: 500}}>{exp.name}</span>
+                                        </div>
+                                        <div style={{display: 'flex', justifyContent:'space-between', alignItems:'center', marginLeft: 22}}>
+                                            <span style={{fontSize: '0.7rem', opacity: 0.6}}>{exp.model_type}</span>
+                                            <span style={{
+                                                fontSize: '0.65rem', 
+                                                padding: '1px 6px', 
+                                                borderRadius: 10, 
+                                                background: exp.status === 'Completed' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(139, 92, 246, 0.1)',
+                                                color: exp.status === 'Completed' ? '#10b981' : 'var(--accent)',
+                                                border: `1px solid ${exp.status === 'Completed' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(139, 92, 246, 0.2)'}`
+                                            }}>
+                                                {exp.status}
+                                            </span>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                            )}
                         </div>
                     )}
 

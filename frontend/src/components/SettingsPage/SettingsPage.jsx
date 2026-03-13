@@ -1,14 +1,16 @@
 import React from 'react';
+import { useLaunch } from '../../context/LaunchContext.jsx';
 import { User, Lock, Bell, Palette, Database, Shield, Save } from 'lucide-react';
 import '../DatasetPage/DatasetsPage.css';
 
 const SettingsPage = () => {
+    const { activeProject } = useLaunch();
     return (
         <div className="section-container">
             <div className="section-header">
-                <div>
+                <div className="header-content">
                     <h1>Settings</h1>
-                    <p className="subtitle">Manage account preferences and workspace configuration.</p>
+                    <p className="subtitle">Manage account preferences for {activeProject?.title || 'Workspace'}</p>
                 </div>
             </div>
 

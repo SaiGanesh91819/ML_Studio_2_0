@@ -52,9 +52,9 @@ const ModelsPage = () => {
     return (
         <div className="section-container full-page-table">
             <div className="section-header">
-                <div>
+                <div className="header-content">
                     <h1>Model Registry</h1>
-                    <p className="subtitle">Track trained models, checkpoints, and performance metrics.</p>
+                    <p className="subtitle">Track trained models, checkpoints, and performance metrics for {activeProject?.title || 'Workspace'}</p>
                 </div>
             </div>
 

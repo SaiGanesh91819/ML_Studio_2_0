@@ -26,6 +26,7 @@
     z-index: 99999;
     animation: topLoadingLoop 1.5s infinite ease-in-out;
     width: 100%;
+    will-change: transform;
 }
 
 @keyframes topLoadingLoop {
@@ -49,13 +50,14 @@
 /* 1. Menu Bar */
 .arena-menu-bar {
     height: 48px;
-    background: rgba(10, 10, 15, 0.8);
+    background: rgba(10, 10, 15, 0.9); /* More opaque for performance */
     border-bottom: 1px solid rgba(255, 255, 255, 0.08); /* Subtle border */
     display: flex;
     align-items: center;
     padding: 0 16px;
     flex-shrink: 0;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(8px);
+    will-change: backdrop-filter;
 }
 
 .menu-group {

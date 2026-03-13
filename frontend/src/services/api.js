@@ -147,6 +147,9 @@ export const trainingService = {
     async getRun(runId) {
         return api.get(`runs/${runId}/`);
     },
+    async getRunStatus(runId) {
+        return api.get(`runs/${runId}/`);
+    },
     async listRuns(experimentId) {
         return api.get(`runs/?experiment_id=${experimentId}`);
     }

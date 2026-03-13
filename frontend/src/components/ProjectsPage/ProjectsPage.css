@@ -15,7 +15,7 @@
 .projects-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    align-items: flex-start; /* Changed to start for consistent top alignment */
     margin-bottom: 40px;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 24px;

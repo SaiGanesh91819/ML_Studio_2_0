@@ -1,8 +1,10 @@
 import React from 'react';
+import { useLaunch } from '../../context/LaunchContext.jsx';
 import { Rocket, Activity, Server, Clock, CheckCircle } from 'lucide-react';
 import '../DatasetPage/DatasetsPage.css'; // Shared Liquid Theme
 
 const DeploymentsPage = () => {
+    const { activeProject } = useLaunch();
     // Mock deployments for visual completion
     const deployments = [
         { id: 'dep-1', name: 'Price Predictor v2', endpoints: 14502, status: 'Active', latency: '45ms' },
@@ -12,11 +14,11 @@ const DeploymentsPage = () => {
     return (
         <div className="section-container">
             <div className="section-header">
-                <div>
+                <div className="header-content">
                     <h1>Deployments</h1>
-                    <p className="subtitle">Manage API endpoints and monitor inference performance.</p>
+                    <p className="subtitle">Manage API endpoints and monitor inference performance for {activeProject?.title || 'Workspace'}</p>
                 </div>
-                <button className="primary-btn"><Rocket size={16}/> New Deployment</button>
+                <button className="create-btn"><Rocket size={16}/> New Deployment</button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
