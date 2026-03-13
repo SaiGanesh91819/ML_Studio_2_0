@@ -115,10 +115,14 @@
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    padding: 2px;
+    padding: 8px; /* Slightly more padding for hit area */
+    color: var(--text-dim);
+    border-radius: 50%;
 }
 
 .clean-icon-btn:hover {
+    color: var(--text-main) !important;
+    background: rgba(255, 255, 255, 0.1);
     opacity: 1 !important;
     filter: drop-shadow(0 0 5px var(--accent));
 }
@@ -401,12 +405,12 @@
 }
 
 .details-modal-header {
-    padding: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 24px 32px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.05);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(139, 92, 246, 0.03);
 }
 
 .details-modal-header h2 {

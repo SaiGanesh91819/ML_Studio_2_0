@@ -1,81 +1,155 @@
-/* --- Liquid OS Shared Theme --- */
+/* --- Liquid OS Datasets Theme --- */
 
-/* 1. Layout Containers */
 .section-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 60px 60px 80px;
+    padding: 40px 60px 80px;
     min-height: 100vh;
     animation: fadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
     background: var(--bg-dark);
     color: var(--text-main);
-    position: relative;
-    /* Subtle ambient glow */
-    background-image: radial-gradient(circle at 10% 20%, rgba(139, 0, 255, 0.05) 0%, transparent 40%);
-    will-change: transform, opacity;
-}
-
-.full-page-table {
-    display: flex;
-    flex-direction: column;
-}
-
-/* 2. Headers & Actions */
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 40px;
-    padding-bottom: 24px;
-    border-bottom: 1px solid var(--border-color);
-    position: relative;
-    z-index: 2;
-    width: 100%;
-}
-
-.section-header > div:first-child {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
 }
 
 .section-header h1 {
     font-size: 2.2rem;
     margin: 0 0 8px 0;
     font-weight: 700;
-    background: linear-gradient(135deg, var(--text-main) 60%, var(--accent));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.5px;
-}
-/* ... skipped ... */
-/* 7. Settings & Form Elements */
-.settings-grid {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    gap: 32px;
+    color: white;
 }
 
-/* 8. Utility Classes */
-.spin { animation: spin 2s linear infinite; }
-@keyframes spin { 100% { transform: rotate(360deg); } }
+.subtitle {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    opacity: 0.7;
+}
 
-.status-badge {
-    display: inline-flex;
+/* Modern Toolbar */
+.data-toolbar select:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
+}
+
+/* Table Enhancements */
+.modern-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.modern-table th {
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.modern-table td {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.dataset-row {
+    transition: all 0.2s;
+}
+
+.dataset-row:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* Action UI */
+.action-pill {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
-    border-radius: 99px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    background: var(--input-bg);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-.status-dot {
-    width: 6px;
-    height: 6px;
+.action-pill.primary {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--accent);
+    border-color: rgba(139, 92, 246, 0.2);
+}
+
+.action-pill.primary:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.icon-btn-circle {
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
+.icon-btn-circle:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border-color: rgba(255,255,255,0.2);
+}
+
+.icon-btn-circle.danger:hover {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+}
+
+/* Pagination */
+.pagination-btn {
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.pagination-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
