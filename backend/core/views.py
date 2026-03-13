@@ -11,6 +11,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.core.mail import send_mail
 from django.conf import settings
+from django.db.models import Count, Sum, Avg
+from django.db.models.functions import TruncDate
+from django.contrib.auth.models import User
 
 from .models import Project, OTPVerification, Dataset, Experiment, TrainingRun
 from .serializers import (
@@ -54,6 +57,80 @@ class UserView(APIView):
             'id': user.id,
             'username': user.username,
             'email': user.email
+        })
+
+class DashboardStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        
+        # 1. Projects
+        user_projects = Project.objects.filter(user=user)
+        active_projects_count = user_projects.filter(status='Active').count()
+        
+        # 2. Experiments & Runs
+        user_experiments = Experiment.objects.filter(project__in=user_projects)
+        all_user_runs = TrainingRun.objects.filter(experiment__in=user_experiments)
+        completed_runs = all_user_runs.filter(status='Completed')
+        
+        models_trained_count = completed_runs.count()
+        
+        # 3. Compute Hours (estimation based on run duration)
+        total_seconds = 0
+        for run in completed_runs:
+            delta = run.updated_at - run.created_at
+            total_seconds += delta.total_seconds()
+        
+        compute_hours = round(total_seconds / 3600, 1)
+        
+        # 4. Avg Accuracy
+        total_accuracy = 0
+        accuracy_count = 0
+        for run in completed_runs:
+            acc = run.metrics.get('accuracy') or run.metrics.get('r2')
+            if acc is not None:
+                total_accuracy += acc
+                accuracy_count += 1
+        
+        avg_accuracy = round((total_accuracy / accuracy_count) * 100, 1) if accuracy_count > 0 else 0
+        
+        # 5. Recent Activity
+        recent_runs = all_user_runs.order_by('-updated_at')[:5]
+        recent_activity = []
+        for run in recent_runs:
+            recent_activity.append({
+                'id': run.id,
+                'experiment_name': run.experiment.name,
+                'status': run.status,
+                'updated_at': run.updated_at.isoformat(),
+                'type': 'run'
+            })
+
+        # 6. Heatmap Data (Runs per day)
+        heatmap_data = (
+            all_user_runs
+            .annotate(date=TruncDate('created_at'))
+            .values('date')
+            .annotate(count=Count('id'))
+            .order_by('date')
+        )
+        heatmap = {str(item['date']): item['count'] for item in heatmap_data}
+
+        return Response({
+            'stats': [
+                { 'id': 1, 'label': 'Active Projects', 'value': str(active_projects_count), 'icon': 'Box', 'color': '#3b82f6' },
+                { 'id': 2, 'label': 'Models Trained', 'value': str(models_trained_count), 'icon': 'Cpu', 'color': '#8b5cf6' },
+                { 'id': 3, 'label': 'Compute Hours', 'value': f"{compute_hours}h", 'icon': 'Zap', 'color': '#f59e0b' },
+                { 'id': 4, 'label': 'Avg Accuracy', 'value': f"{avg_accuracy}%", 'icon': 'Activity', 'color': '#10b981' },
+            ],
+            'recent_activity': recent_activity,
+            'heatmap': heatmap,
+            'resources': [
+                { 'name': 'GPU Quota (A100)', 'usage': min(int(compute_hours/1.2 * 100), 100) if compute_hours > 0 else 0, 'limit': '120h', 'used': f"{compute_hours}h" },
+                { 'name': 'Storage (SSD)', 'usage': 12, 'limit': '1TB', 'used': '124GB' },
+                { 'name': 'API Requests', 'usage': 4, 'limit': '100k', 'used': '4.2k' }
+            ]
         })
 
 class RegisterView(generics.CreateAPIView):

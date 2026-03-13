@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
-import { projectService } from '../../services/api';
+import { dashboardService } from '../../services/api';
 import { 
     Activity, 
     Box, 
@@ -17,31 +17,41 @@ import {
 const Dashboard = () => {
     const [selectedYear, setSelectedYear] = useState('2026');
     const [timeSpan, setTimeSpan] = useState('All Year');
-    const [projects, setProjects] = useState([]);
+    const [stats, setStats] = useState([]);
     const [activityMap, setActivityMap] = useState({});
+    const [activities, setActivities] = useState([]);
+    const [resources, setResources] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const loadData = async () => {
             try {
-                // Parallel fetch
-                const projectsRes = await projectService.getProjects();
-                setProjects(projectsRes.data);
-
-                // Process Heatmap Data
-                const activityMap = {};
-                projectsRes.data.forEach(p => {
-                    const date = new Date(p.updated_at).toDateString();
-                    activityMap[date] = (activityMap[date] || 0) + 1;
-                });
-                setActivityMap(activityMap);
+                setLoading(true);
+                const res = await dashboardService.getStats();
+                const data = res.data;
+                
+                setStats(data.stats);
+                setActivityMap(data.heatmap);
+                setResources(data.resources);
+                
+                // Format activities for the feed
+                const formattedActivities = data.recent_activity.map(act => ({
+                    time: new Date(act.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    date: new Date(act.updated_at).toLocaleDateString(),
+                    title: `${act.experiment_name}`,
+                    desc: `Model run status: ${act.status}`,
+                    type: act.type
+                }));
+                setActivities(formattedActivities);
 
             } catch (error) {
                 console.error("Failed to load dashboard data", error);
+            } finally {
+                setLoading(false);
             }
         };
         loadData();
     }, []);
-
 
     // Derived state for heatmap length
     const getWeeks = () => {
@@ -54,13 +64,12 @@ const Dashboard = () => {
 
     // Calculate intensity for a specific cell
     const getActivityIntensity = (weekIndex, dayIndex) => {
-        // Assume last cell is today and go backwards
         const totalWeeks = getWeeks();
         const daysFromEnd = ((totalWeeks - 1 - weekIndex) * 7) + (6 - dayIndex);
         
         const date = new Date();
         date.setDate(date.getDate() - daysFromEnd);
-        const dateStr = date.toDateString();
+        const dateStr = date.toISOString().split('T')[0];
 
         const count = activityMap[dateStr] || 0;
         if (count === 0) return 0;
@@ -69,23 +78,25 @@ const Dashboard = () => {
         return 3;
     };
     
-    // Seed for random data based on selection to simulate data fetching
     const seed = selectedYear + timeSpan;
-    // Real Stats
-    const stats = [
-        { id: 1, label: 'Active Projects', value: projects.length.toString(), icon: Box, color: '#3b82f6' },
-        { id: 2, label: 'Models Trained', value: '0', icon:  Cpu, color: '#8b5cf6' },
-        { id: 3, label: 'Compute Hours', value: '0h', icon: Zap, color: '#f59e0b' },
-        { id: 4, label: 'Avg Accuracy', value: '0%', icon: Activity, color: '#10b981' },
-    ];
 
-    const resources = [
-        { name: 'GPU Quota (A100)', usage: 0, limit: '120h', used: '0h' },
-        { name: 'Storage (SSD)', usage: 0, limit: '1TB', used: '0GB' },
-        { name: 'API Requests', usage: 0, limit: '100k', used: '0k' }
-    ];
+    const getIcon = (iconName) => {
+        switch(iconName) {
+            case 'Box': return Box;
+            case 'Cpu': return Cpu;
+            case 'Zap': return Zap;
+            case 'Activity': return Activity;
+            default: return Activity;
+        }
+    };
 
-    const activities = [];
+    if (loading) {
+        return (
+            <div className="dashboard-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
+                <div className="loading-spinner">Loading your dashboard...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="dashboard-container">
@@ -108,16 +119,19 @@ const Dashboard = () => {
 
             {/* Stats Grid */}
             <div className="stats-grid">
-                {stats.map(stat => (
-                    <div key={stat.id} className="stat-card">
-                        <div className="stat-glow" style={{ '--glow-color': stat.color }}></div>
-                        <div className="stat-icon" style={{ color: stat.color }}>
-                            <stat.icon size={24} />
+                {stats.map(stat => {
+                    const IconComp = getIcon(stat.icon);
+                    return (
+                        <div key={stat.id} className="stat-card">
+                            <div className="stat-glow" style={{ '--glow-color': stat.color }}></div>
+                            <div className="stat-icon" style={{ color: stat.color }}>
+                                <IconComp size={24} />
+                            </div>
+                            <h2 className="stat-value">{stat.value}</h2>
+                            <p className="stat-label">{stat.label}</p>
                         </div>
-                        <h2 className="stat-value">{stat.value}</h2>
-                        <p className="stat-label">{stat.label}</p>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Content Split */}

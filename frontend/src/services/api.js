@@ -186,4 +186,10 @@ export const trainingService = {
     }
 };
 
+export const dashboardService = {
+    async getStats() {
+        return api.get('stats/');
+    }
+};
+
 export default api;
