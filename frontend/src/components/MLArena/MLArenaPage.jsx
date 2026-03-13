@@ -168,7 +168,7 @@ const MLArenaPage = () => {
 
     const loadDatasets = useCallback(async () => {
         try {
-            const res = await datasetService.list(activeProject?.id);
+            const res = await datasetService.list({ project_id: activeProject?.id });
             setDatasets(res.data);
         } catch (err) {
             console.error("Failed to load datasets", err);
