@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { useLocation, useNavigate, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import HomePage from './components/HomePage/HomePage';
 import ProjectsPage from './components/ProjectsPage/ProjectsPage';
@@ -448,7 +448,7 @@ function App() {
     );
 }
 
-const NavItem = ({ label, active, onClick, angle, textOpacity, radius }) => {
+const NavItem = memo(({ label, active, onClick, angle, textOpacity, radius }) => {
     return (
         <div 
             className={`nav-item ${active ? 'active' : ''}`}
@@ -464,9 +464,9 @@ const NavItem = ({ label, active, onClick, angle, textOpacity, radius }) => {
             <span className="nav-text">{label}</span>
         </div>
     );
-};
+});
 
-const TechRingSystem = ({ rotationOffset, isHovering }) => {
+const TechRingSystem = memo(({ rotationOffset, isHovering }) => {
     const rotationScale = 2; 
     const scrollRotation = rotationOffset * rotationScale;
     const ringScale = isHovering ? 1 : 0.85;
@@ -506,6 +506,6 @@ const TechRingSystem = ({ rotationOffset, isHovering }) => {
             </svg>
         </div>
     );
-};
+});
 
 export default App;

@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useLaunch } from '../../context/LaunchContext.jsx';
 import { datasetService, trainingService, projectService, experimentService } from '../../services/api'; 
 // import PreprocessingModal from './PreprocessingModal'; 
@@ -55,7 +55,7 @@ const MLArenaPage = () => {
             else if (selectedAlgo.id.includes('svc')) setModelConfig({ C: 1.0, kernel: 'rbf' });
             else setModelConfig({}); 
         }
-    }, [selectedAlgo]);
+    }, [selectedAlgo, activeDataset]);
     const [isLoadingBarActive, setIsLoadingBarActive] = useState(false);
     const [isDatasetsOpen, setIsDatasetsOpen] = useState(true);
     const [isModelsOpen, setIsModelsOpen] = useState(true);
@@ -84,16 +84,52 @@ const MLArenaPage = () => {
     const fileInputRef = useRef(null);
 
     // --- Loading Data ---
-    const addLog = (message) => setLogs(prev => [...prev, message]);
+    const addLog = useCallback((message) => setLogs(prev => [...prev, message]), []);
 
-    const loadDatasets = async () => {
+    const handleDatasetSelect = useCallback(async (dataset, showSheet = true) => {
+        setActiveDataset(dataset);
+        setSelectedTask(null);
+        setSelectedProblem(null);
+        setSelectedAlgo(null);
+        setSelectedColumnForStats('');
+        
+        if (dataset.statistics && Object.keys(dataset.statistics).length > 0) {
+            setStats(dataset.statistics);
+        } else {
+            setStats(null);
+        }
+        
+        setLastSaved(dataset.updated_at || null);
+
         try {
-            const res = await datasetService.list(activeProject.id);
+            setCurrentPage(1); // Reset to page 1
+            const res = await datasetService.preview(dataset.id, 1, pageSize); 
+            // Backend returns { data: [...], total: ... }
+            const rows = res.data.data || res.data.results || res.data; 
+            const total = res.data.total || 0;
+            
+            if (Array.isArray(rows)) {
+                setPreviewData(rows); 
+                setTotalRows(total);
+            } else {
+                setPreviewData([]);
+                setTotalRows(0);
+            }
+            if (showSheet) setShowDataSheet(true);
+        } catch (err) {
+            console.error("Failed to load preview", err);
+            addLog(`[ERROR] Failed to load preview: ${err.message}`);
+        }
+    }, [addLog, pageSize]);
+
+    const loadDatasets = useCallback(async () => {
+        try {
+            const res = await datasetService.list(activeProject?.id);
             setDatasets(res.data);
         } catch (err) {
             console.error("Failed to load datasets", err);
         }
-    };
+    }, [activeProject?.id]);
 
     useEffect(() => {
         if (activeProject) {
@@ -109,14 +145,14 @@ const MLArenaPage = () => {
             setLogs(["[System] Connecting to workspace interface..."]);
             loadDatasets();
         }
-    }, [activeProject]);
+    }, [activeProject, loadDatasets]);
 
     // Auto-select first dataset if available and none selected
     useEffect(() => {
         if (datasets.length > 0 && !activeDataset) {
             handleDatasetSelect(datasets[0], false);
         }
-    }, [datasets, activeDataset]);
+    }, [datasets, activeDataset, handleDatasetSelect]);
 
     // --- Resizing Logic (State-based) ---
     const startResize = (e, panel) => {
@@ -156,41 +192,7 @@ const MLArenaPage = () => {
         alert("Project saved successfully!");
     };
 
-    const handleDatasetSelect = async (dataset, showSheet = true) => {
-        setActiveDataset(dataset);
-        setSelectedTask(null);
-        setSelectedProblem(null);
-        setSelectedAlgo(null);
-        setSelectedColumnForStats('');
-        
-        if (dataset.statistics && Object.keys(dataset.statistics).length > 0) {
-            setStats(dataset.statistics);
-        } else {
-            setStats(null);
-        }
-        
-        setLastSaved(dataset.updated_at || null);
 
-        try {
-            setCurrentPage(1); // Reset to page 1
-            const res = await datasetService.preview(dataset.id, 1, pageSize); 
-            // Backend returns { data: [...], total: ... }
-            const rows = res.data.data || res.data.results || res.data; 
-            const total = res.data.total || 0;
-            
-            if (Array.isArray(rows)) {
-                setPreviewData(rows); 
-                setTotalRows(total);
-            } else {
-                setPreviewData([]);
-                setTotalRows(0);
-            }
-            if (showSheet) setShowDataSheet(true);
-        } catch (err) {
-            console.error("Failed to load preview", err);
-            addLog(`[ERROR] Failed to load preview: ${err.message}`);
-        }
-    };
     
     const handlePageChange = async (newPage) => {
         if (!activeDataset) return;
