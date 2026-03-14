@@ -62,8 +62,8 @@ const Dashboard = () => {
         }
     };
 
-    // Calculate intensity for a specific cell
-    const getActivityIntensity = (weekIndex, dayIndex) => {
+    // Calculate intensity and info for a specific cell
+    const getActivityInfo = (weekIndex, dayIndex) => {
         const totalWeeks = getWeeks();
         const daysFromEnd = ((totalWeeks - 1 - weekIndex) * 7) + (6 - dayIndex);
         
@@ -72,10 +72,14 @@ const Dashboard = () => {
         const dateStr = date.toISOString().split('T')[0];
 
         const count = activityMap[dateStr] || 0;
-        if (count === 0) return 0;
-        if (count <= 1) return 1;
-        if (count <= 3) return 2;
-        return 3;
+        let intensity = 0;
+        if (count > 0) {
+            if (count <= 1) intensity = 1;
+            else if (count <= 3) intensity = 2;
+            else intensity = 3;
+        }
+
+        return { intensity, count, dateStr };
     };
     
     const seed = selectedYear + timeSpan;
@@ -169,7 +173,6 @@ const Dashboard = () => {
                     </div>
                     
                     {/* Activity Heatmap */}
-                    {/* Activity Heatmap */}
                     <div className="heatmap-wrapper">
                         {/* Month Labels */}
                         <div className="heatmap-months">
@@ -182,7 +185,6 @@ const Dashboard = () => {
                                     <span key={i} style={{ flex: 1 }}>{m}</span>
                                 ))
                             ) : (
-                                // 30 Days - Show Weeks
                                 ['Week 1', 'Week 2', 'Week 3', 'Week 4'].map((m, i) => (
                                     <span key={i} style={{ flex: 1 }}>{m}</span>
                                 ))
@@ -201,12 +203,12 @@ const Dashboard = () => {
                                 {Array.from({ length: getWeeks() }).map((_, weekIndex) => (
                                     <div key={weekIndex} className="heatmap-col">
                                         {Array.from({ length: 7 }).map((_, dayIndex) => {
-                                            const intensity = getActivityIntensity(weekIndex, dayIndex);
+                                            const { intensity, count, dateStr } = getActivityInfo(weekIndex, dayIndex);
                                             return (
                                                 <div 
                                                     key={dayIndex} 
                                                     className={`heatmap-cell intensity-${intensity}`}
-                                                    title={`Activity Level: ${intensity}`} // Could add date here too if we wanted
+                                                    title={`${dateStr}: ${count} experimental runs`}
                                                 />
                                             );
                                         })}

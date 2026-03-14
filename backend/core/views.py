@@ -169,6 +169,24 @@ class ProfileUpdateView(APIView):
             "display_name": f"{user.first_name} {user.last_name}".strip()
         })
 
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+
+        if not user.check_password(old_password):
+            return Response({"error": "Incorrect current password"}, status=400)
+        
+        if len(new_password) < 8:
+            return Response({"error": "New password must be at least 8 characters"}, status=400)
+
+        user.set_password(new_password)
+        user.save()
+        return Response({"message": "Password changed successfully"})
+
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
@@ -635,10 +653,24 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
+        user = self.request.user
+        queryset = TrainingRun.objects.filter(experiment__project__user=user)
+        
         experiment_id = self.request.query_params.get('experiment_id')
+        project_id = self.request.query_params.get('project_id')
+        status = self.request.query_params.get('status')
+        search = self.request.query_params.get('search')
+        
         if experiment_id:
-            return TrainingRun.objects.filter(experiment_id=experiment_id, experiment__project__user=self.request.user)
-        return TrainingRun.objects.filter(experiment__project__user=self.request.user)
+            queryset = queryset.filter(experiment_id=experiment_id)
+        if project_id:
+            queryset = queryset.filter(experiment__project_id=project_id)
+        if status:
+            queryset = queryset.filter(status=status)
+        if search:
+            queryset = queryset.filter(experiment__name__icontains=search)
+            
+        return queryset.order_by('-created_at')
 
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
@@ -709,17 +741,33 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
             run.logs += "[System] Preprocessing data (encoding and imputation)...\n"
             run.save()
             
-            # Extremely generic handling: label encode objects
+            # Extremely generic handling: label encode objects and store mappings
+            categorical_mappings = {}
             for col in X.columns:
-                if str(X[col].dtype) == 'object' or str(X[col].dtype) == 'category':
-                    X[col] = LabelEncoder().fit_transform(X[col].astype(str))
+                # 1. First, try to convert to numeric if it's all numbers (strings of numbers)
+                X[col] = pd.to_numeric(X[col], errors='ignore')
+                
+                # 2. Check if it's still non-numeric
+                if not pd.api.types.is_numeric_dtype(X[col]):
+                    le = LabelEncoder()
+                    # Strip, Lower and Strip any whitespace for consistency
+                    clean_series = X[col].astype(str).str.strip().str.lower()
+                    X[col] = le.fit_transform(clean_series)
+                    # Store mappings: { 'lowercased_label': int_code }
+                    categorical_mappings[col] = {str(label): int(code) for code, label in enumerate(le.classes_)}
                 else:
+                    # Pure numeric: Handle NaNs
                     X[col] = X[col].fillna(X[col].mean())
             
             # Target encode for classification
             is_classification = model_name in ['logistic_regression', 'random_forest_classification', 'svc']
             if is_classification and str(y.dtype) == 'object':
-                y = LabelEncoder().fit_transform(y.astype(str))
+                le_y = LabelEncoder()
+                y = le_y.fit_transform(y.astype(str).str.strip().str.lower())
+                categorical_mappings['__target__'] = {label: int(code) for code, label in enumerate(le_y.classes_)}
+            
+            run.metrics['categorical_mappings'] = categorical_mappings
+            run.save()
                 
             X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=train_split, random_state=42)
             
@@ -790,7 +838,12 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
                 }
                 run.logs += f"[Metrics] MSE: {mse:.4f}, R2: {r2:.4f}\n"
             
-            run.metrics = metrics
+            # Merge new metrics with existing (like categorical_mappings)
+            if not isinstance(run.metrics, dict):
+                run.metrics = {}
+            run.metrics.update(metrics)
+            # Explicitly mark for saving to avoid JSONField update issues in some versions
+            run.metrics = dict(run.metrics) 
             
             # 5. Save model artifact
             model_bytes = io.BytesIO()
@@ -835,17 +888,42 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
             
             # Ensure input data matches features and is in correct order
             ordered_data = []
+            categorical_mappings = run.metrics.get('categorical_mappings', {})
+            
             for feat in features:
                 val = input_data.get(feat, 0)
-                # Try to cast to float if it looks like a number
+                
+                # 1. Try to use explicit mappings from training
+                if feat in categorical_mappings and isinstance(val, str):
+                    low_val = str(val).lower().strip()
+                    if low_val in categorical_mappings[feat]:
+                        val = categorical_mappings[feat][low_val]
+                
+                # 2. Fallback heuristic for boolean strings
+                if isinstance(val, str):
+                    low_val = val.lower().strip()
+                    if low_val in ['yes', 'true', 'y']:
+                        val = 1
+                    elif low_val in ['no', 'false', 'n']:
+                        val = 0
+                
+                # 3. Try to cast to float
                 try:
-                    val = float(val) if val != "" else 0
-                except:
+                    if val == "" or val is None:
+                        val = 0.0
+                    else:
+                        val = float(val)
+                except (ValueError, TypeError):
                     pass
                 ordered_data.append(val)
             
             # Convert to DataFrame with explicit columns
+            # Ensure all data is numeric if possible, or object if categorical
             df_input = pd.DataFrame([ordered_data], columns=features)
+            
+            # Force numeric conversion for everything that CAN be numeric
+            for col in df_input.columns:
+                df_input[col] = pd.to_numeric(df_input[col], errors='ignore')
             
             # 3. Predict
             prediction = model.predict(df_input)
@@ -862,4 +940,9 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
             })
             
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            error_msg = str(e)
+            if "could not convert string to float" in error_msg.lower():
+                return Response({
+                    "error": f"Data conversion error: {error_msg}. The model expects numerical values for some features. Make sure categorical features are handled correctly or re-train the model with the latest dataset."
+                }, status=400)
+            return Response({"error": f"Prediction failed: {error_msg}"}, status=500)

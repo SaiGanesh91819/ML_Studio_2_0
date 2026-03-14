@@ -368,6 +368,34 @@ ${JSON.stringify(model.config || {}, null, 2)}
         URL.revokeObjectURL(url);
     };
 
+    const handleDownloadModel = async (model) => {
+        if (model.model_url) {
+            try {
+                toast.info("Preparing download...");
+                const response = await fetch(model.model_url);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Sanitize filename: replace colons/slashes with underscores
+                const safeName = model.name.replace(/[:/\\?%*|"<>]/g, '_');
+                a.download = `${safeName}.pkl`;
+                
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                toast.success("Downloading trained model...");
+            } catch (err) {
+                console.error("Download failed", err);
+                toast.error("Failed to download model file.");
+            }
+        } else {
+            toast.error("Model file not available. Make sure training is completed.");
+        }
+    };
+
     const renderReportModal = () => {
         if (!reportModel) return null;
         const isClassification = ['logistic_regression', 'random_forest', 'svc'].includes(reportModel.model_type);
@@ -506,6 +534,33 @@ ${JSON.stringify(model.config || {}, null, 2)}
                     <div className="details-modal-body" style={{padding: '24px 32px'}}>
                         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:30}}>
                             <div>
+                                {(() => {
+                                    const metrics = testModel?.metrics || {};
+                                    const mappings = metrics.categorical_mappings || {};
+                                    const hasMappingsStructure = Object.prototype.hasOwnProperty.call(metrics, 'categorical_mappings');
+                                    
+                                    const missingMappings = features.filter(f => {
+                                        const lowF = f.toLowerCase();
+                                        const hasMapping = !!mappings[f];
+                                        const looksCategorical = lowF.includes('is_') || lowF.includes('has_') || ['yes','no','true','false','aircond','heating','furnish','status'].some(kw => lowF.includes(kw));
+                                        return looksCategorical && !hasMapping;
+                                    });
+
+                                    // Only show warning if it's REALLY a legacy run (missing the key entirely)
+                                    // AND we have features that look like they need mapping.
+                                    if (!hasMappingsStructure && missingMappings.length > 0) {
+                                        return (
+                                            <div style={{background:'rgba(245, 158, 11, 0.1)', border:'1px solid rgba(245, 158, 11, 0.2)', borderRadius:8, padding:12, marginBottom:20, display:'flex', gap:10}}>
+                                                <Info size={16} style={{color:'#f59e0b', flexShrink:0, marginTop:2}}/>
+                                                <div style={{fontSize:'0.75rem', color:'rgba(255,255,255,0.7)'}}>
+                                                    <strong style={{color:'#f59e0b', display:'block', marginBottom:4}}>Legacy Run Detected</strong>
+                                                    This model was trained before the text-mapping update. Categorical features like <strong>{missingMappings[0]}{missingMappings.length > 1 ? ` (+${missingMappings.length-1} more)` : ''}</strong> may cause errors unless you re-train.
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
                                 <h4 className="report-section-title" style={{marginBottom:15}}>Input Data</h4>
                                 <div style={{maxHeight:350, overflowY:'auto', paddingRight:10}}>
                                     {features.length === 0 ? (
@@ -513,18 +568,52 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                             <p style={{margin:0}}>No feature columns found for this model.</p>
                                             <p style={{margin:'4px 0 0 0', fontSize:'0.75rem', opacity:0.6}}>This model might have been trained with an older version.</p>
                                         </div>
-                                    ) : features.map(feat => (
-                                        <div key={feat} className="input-group" style={{marginBottom:12}}>
-                                            <label style={{fontSize:'0.8rem', opacity:0.8, display:'block', marginBottom:4}}>{feat}</label>
-                                            <input 
-                                                type="text"
-                                                placeholder={`Enter ${feat}...`}
-                                                value={testInput[feat] || ""}
-                                                onChange={(e) => setTestInput({...testInput, [feat]: e.target.value})}
-                                                style={{width:'100%', padding:8, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:6, color:'white'}}
-                                            />
-                                        </div>
-                                    ))}
+                                    ) : features.map(feat => {
+                                        const mappings = testModel?.metrics?.categorical_mappings || {};
+                                        let options = mappings[feat] ? Object.keys(mappings[feat]) : null;
+                                        
+                                        // Heuristic: If no mapping, check if it's a known binary or in current dataset stats
+                                        const lowFeat = feat.toLowerCase();
+                                        if (!options) {
+                                            const colStats = stats?.[feat] || stats?.columns?.[feat];
+                                            if (colStats?.top_categories && colStats.unique_count <= 20) {
+                                                options = colStats.top_categories.map(c => c.value);
+                                            } else if (lowFeat.includes('is_') || lowFeat.includes('has_') || ['yes','no','true','false','aircond','heating','furnish'].some(kw => lowFeat.includes(kw))) {
+                                                // Common binary indicators
+                                                options = ['no', 'yes'];
+                                            }
+                                        }
+
+                                        return (
+                                            <div key={feat} className="input-group" style={{marginBottom:15}}>
+                                                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4}}>
+                                                    <label style={{fontSize:'0.75rem', opacity:0.8, fontWeight:500}}>{feat}</label>
+                                                    {options && <span style={{fontSize:'0.6rem', color:'var(--accent)', background:'rgba(139, 92, 246, 0.1)', padding:'2px 6px', borderRadius:4, fontWeight:600}}>CATEGORICAL</span>}
+                                                </div>
+                                                
+                                                {options ? (
+                                                    <select
+                                                        value={testInput[feat] || ""}
+                                                        onChange={(e) => setTestInput({...testInput, [feat]: e.target.value})}
+                                                        style={{width:'100%', padding:'10px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, color:'white', outline:'none', fontSize:'0.85rem'}}
+                                                    >
+                                                        <option value="">Select {feat}...</option>
+                                                        {options.map(opt => (
+                                                            <option key={opt} value={opt}>{opt}</option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <input 
+                                                        type="text"
+                                                        placeholder={`Enter ${feat}...`}
+                                                        value={testInput[feat] || ""}
+                                                        onChange={(e) => setTestInput({...testInput, [feat]: e.target.value})}
+                                                        style={{width:'100%', padding:'10px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, color:'white', outline:'none', fontSize:'0.85rem'}}
+                                                    />
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                                 <button 
                                     className="primary-btn huge" 
@@ -546,25 +635,42 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                     <div style={{animation:'fadeIn 0.3s', width:'100%'}}>
                                         <h4 className="report-section-title" style={{marginBottom:24}}>Prediction Result</h4>
                                         <div style={{fontSize:'3rem', fontWeight:800, color:'var(--accent)', textShadow:'0 0 20px rgba(139, 92, 246, 0.4)', marginBottom:10}}>
-                                            {typeof predictionResult.prediction === 'number' && predictionResult.prediction % 1 !== 0 
-                                                ? predictionResult.prediction.toFixed(4) 
-                                                : predictionResult.prediction}
+                                            {(() => {
+                                                const pred = predictionResult.prediction;
+                                                const mappings = testModel?.metrics?.categorical_mappings || {};
+                                                const targetMappings = mappings['__target__'];
+                                                
+                                                if (targetMappings) {
+                                                    const label = Object.keys(targetMappings).find(key => targetMappings[key] === pred);
+                                                    if (label) return label.toUpperCase();
+                                                }
+                                                
+                                                return typeof pred === 'number' && pred % 1 !== 0 
+                                                    ? pred.toFixed(4) 
+                                                    : pred;
+                                            })()}
                                         </div>
                                         
                                         {predictionResult.probability && (
                                             <div style={{marginTop:20, textAlign:'left', width:'100%'}}>
                                                 <p style={{fontSize:'0.8rem', opacity:0.6, marginBottom:10}}>Probabilities:</p>
-                                                {predictionResult.probability.map((p, i) => (
-                                                    <div key={i} style={{marginBottom:8}}>
-                                                        <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', marginBottom:4}}>
-                                                            <span>Class {i}</span>
-                                                            <span>{(p * 100).toFixed(1)}%</span>
+                                                {predictionResult.probability.map((p, i) => {
+                                                    const mappings = testModel?.metrics?.categorical_mappings || {};
+                                                    const targetMappings = mappings['__target__'];
+                                                    const label = targetMappings ? Object.keys(targetMappings).find(key => targetMappings[key] === i) : null;
+                                                    
+                                                    return (
+                                                        <div key={i} style={{marginBottom:8}}>
+                                                            <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', marginBottom:4}}>
+                                                                <span style={{textTransform:'capitalize'}}>{label || `Class ${i}`}</span>
+                                                                <span>{(p * 100).toFixed(1)}%</span>
+                                                            </div>
+                                                            <div style={{height:4, background:'rgba(255,255,255,0.1)', borderRadius:2, overflow:'hidden', width:'100%'}}>
+                                                                <div style={{height:'100%', width: `${p*100}%`, background:'var(--accent)'}} />
+                                                            </div>
                                                         </div>
-                                                        <div style={{height:4, background:'rgba(255,255,255,0.1)', borderRadius:2, overflow:'hidden', width:'100%'}}>
-                                                            <div style={{height:'100%', width:`${p*100}%`, background:'var(--accent)'}} />
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
@@ -654,6 +760,14 @@ ${JSON.stringify(model.config || {}, null, 2)}
             toast.error("No trained run found for this model");
             return;
         }
+
+        // Validate all features are provided
+        const features = testModel.config?.feature_columns || [];
+        const missing = features.filter(f => !testInput[f] || (typeof testInput[f] === 'string' && testInput[f].trim() === ""));
+        if (missing.length > 0) {
+            toast.error(`Please provide values for: ${missing.join(", ")}`);
+            return;
+        }
         
         setIsPredicting(true);
         try {
@@ -670,7 +784,8 @@ ${JSON.stringify(model.config || {}, null, 2)}
             }
         } catch (err) {
             console.error("Prediction failed", err);
-            toast.error(`Prediction failed: ${err.message}`);
+            const errorMsg = err.response?.data?.error || err.message;
+            toast.error(`Prediction failed: ${errorMsg}`);
         } finally {
             setIsPredicting(false);
         }
@@ -700,6 +815,7 @@ ${JSON.stringify(model.config || {}, null, 2)}
                 }
             });
             setActiveRun(createRunRes.data);
+            loadExperiments(); // Refresh list to show the "Running" model in sidebar
             startPolling(createRunRes.data.id);
         } catch (err) {
             setLogs(prev => [...prev, `[ERROR] Training failed: ${err.message}`]);
@@ -817,7 +933,7 @@ ${JSON.stringify(model.config || {}, null, 2)}
         return (
             <div className="data-sheet-view">
                  <div className="sheet-header">
-                    <div style={{display:'flex', alignItems:'center', gap:10}}>
+                     <div style={{display:'flex', alignItems:'center', gap:10}}>
                         <h3>{activeDataset.name} <span style={{opacity:0.5, fontSize:'0.8em'}}>{isEditing ? '(Editing Mode)' : `Preview (${totalRows} rows)`}</span></h3>
                         {/* Edit Mode Disabled Temporarily 
                         {!isEditing && (
@@ -1084,13 +1200,48 @@ ${JSON.stringify(model.config || {}, null, 2)}
                         <h3 style={{marginTop:30}}>Hyperparameters</h3>
                         <div className="params-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:15}}>
                             {Object.entries(modelConfig).map(([key, val]) => {
-                                const label = key.replace('_', ' ');
-                                
-                                // Specialized Inputs for Experts
+                                const label = key.replace(/_/g, ' ');
+                                const description = {
+                                    fit_intercept: "Whether to calculate the intercept (bias) for this model. Leave checked unless data is centered.",
+                                    copy_X: "If checked, X will be copied; else, it may be overwritten by the algorithm to save memory.",
+                                    random_state: "Determines random number generation for reproducibility. Use same number for same results.",
+                                    C: "Regularization strength; smaller values specify stronger regularization.",
+                                    penalty: "The norm used in the penalization (L1, L2, or Elasticnet).",
+                                    solver: "Algorithm to use in the optimization problem.",
+                                    max_iter: "Maximum number of iterations taken for the solvers to converge.",
+                                    n_estimators: "The number of trees in the forest.",
+                                    max_depth: "The maximum depth of the tree. If none, nodes are expanded until all leaves are pure.",
+                                    criterion: "The function to measure the quality of a split.",
+                                    kernel: "Specifies the kernel type to be used in the algorithm.",
+                                    gamma: "Kernel coefficient for 'rbf', 'poly' and 'sigmoid'.",
+                                    degree: "Degree of the polynomial kernel function.",
+                                    class_weight: "Weights associated with classes. 'balanced' uses inverse class frequencies."
+                                }[key] || "Model hyperparameter for tuning performance.";
+
+                                const LabelWithInfo = () => (
+                                    <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:6}}>
+                                        <label style={{textTransform:'capitalize', margin:0, fontSize:'0.75rem', color:'var(--text-dim)', fontWeight:600}}>{label}</label>
+                                        <div 
+                                            className="info-tooltip-trigger" 
+                                            title={description} 
+                                            style={{
+                                                display:'flex', 
+                                                alignItems:'center', 
+                                                cursor:'help', 
+                                                opacity:0.8,
+                                                color:'var(--accent)',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            <Info size={14} />
+                                        </div>
+                                    </div>
+                                );
+                                                        // Specialized Inputs for Experts
                                 if (key === 'penalty') {
                                     return (
                                         <div key={key} className="input-group">
-                                            <label style={{textTransform:'capitalize'}}>{label}</label>
+                                            <LabelWithInfo />
                                             <select 
                                                 value={val}
                                                 onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.value})}
@@ -1110,7 +1261,7 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                         : ['lbfgs', 'liblinear'];
                                     return (
                                         <div key={key} className="input-group">
-                                            <label style={{textTransform:'capitalize'}}>{label}</label>
+                                            <LabelWithInfo />
                                             <select 
                                                 value={val}
                                                 onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.value})}
@@ -1121,11 +1272,11 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                         </div>
                                     );
                                 }
-
+ 
                                 if (key === 'kernel') {
                                     return (
                                         <div key={key} className="input-group">
-                                            <label style={{textTransform:'capitalize'}}>{label}</label>
+                                            <LabelWithInfo />
                                             <select 
                                                 value={val}
                                                 onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.value})}
@@ -1139,11 +1290,11 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                         </div>
                                     );
                                 }
-
+ 
                                 if (key === 'class_weight') {
                                     return (
                                         <div key={key} className="input-group">
-                                            <label style={{textTransform:'capitalize'}}>{label}</label>
+                                            <LabelWithInfo />
                                             <select 
                                                 value={val === null ? 'none' : 'balanced'}
                                                 onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.value === 'none' ? null : 'balanced'})}
@@ -1155,11 +1306,10 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                         </div>
                                     );
                                 }
-                                
-                                if (key === 'criterion') {
+                                                        if (key === 'criterion') {
                                     return (
                                         <div key={key} className="input-group">
-                                            <label style={{textTransform:'capitalize'}}>{label}</label>
+                                            <LabelWithInfo />
                                             <select 
                                                 value={val}
                                                 onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.value})}
@@ -1172,24 +1322,27 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                         </div>
                                     );
                                 }
-
+                                
                                 if (typeof val === 'boolean') {
                                     return (
-                                        <div key={key} className="input-group" style={{display:'flex', alignItems:'center', gap:10, paddingTop:24}}>
-                                            <input 
-                                                type="checkbox"
-                                                checked={val}
-                                                onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.checked})}
-                                                style={{width:18, height:18, accentColor:'var(--accent)'}}
-                                            />
-                                            <label style={{textTransform:'capitalize', cursor:'pointer'}}>{label}</label>
+                                        <div key={key} className="input-group" style={{display:'flex', flexDirection:'column', justifyContent:'center', paddingTop:10}}>
+                                            <LabelWithInfo />
+                                            <div style={{display:'flex', alignItems:'center', gap:10}}>
+                                                <input 
+                                                    type="checkbox"
+                                                    checked={val}
+                                                    onChange={(e) => setModelConfig({...modelConfig, [key]: e.target.checked})}
+                                                    style={{width:18, height:18, accentColor:'var(--accent)'}}
+                                                />
+                                                <span style={{fontSize:'0.85rem', color:'rgba(255,255,255,0.7)'}}>{val ? 'Enabled' : 'Disabled'}</span>
+                                            </div>
                                         </div>
                                     );
                                 }
 
                                 return (
                                     <div key={key} className="input-group">
-                                        <label style={{textTransform:'capitalize'}}>{label}</label>
+                                        <LabelWithInfo />
                                         <input 
                                             type={typeof val === 'number' ? 'number' : 'text'}
                                             value={val}
@@ -1490,17 +1643,20 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                 cursor: 'pointer', 
                                 display: 'flex', 
                                 alignItems: 'center', 
+                                justifyContent: 'space-between',
                                 position: 'sticky', 
                                 top: 0, 
                                 zIndex: 10, 
                                 background: 'rgba(20,20,30,0.95)',
                                 borderLeft: '3px solid var(--accent)',
                                 padding: '12px'
-                            }} 
+                            }}
                             onClick={() => setIsDatasetsOpen(!isDatasetsOpen)}
                         >
-                            <ChevronRight size={14} style={{transform: isDatasetsOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', marginRight: 8, color: 'var(--accent)'}} />
-                            <h3 style={{flex: 1, margin: 0, display: 'flex', alignItems: 'center', fontSize:'0.75rem', letterSpacing:1.5, fontWeight:800}}> DATASETS</h3>
+                            <div style={{display:'flex', alignItems:'center'}}>
+                                <ChevronRight size={14} style={{transform: isDatasetsOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', marginRight: 8, color: 'var(--accent)'}} />
+                                <h3 style={{margin: 0, display: 'flex', alignItems: 'center', fontSize:'0.75rem', letterSpacing:1.5, fontWeight:800, textAlign: 'left'}}> DATASETS</h3>
+                            </div>
                             <input 
                                 type="file" 
                                 ref={fileInputRef} 
@@ -1510,7 +1666,7 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                 onClick={(e) => e.stopPropagation()}
                             />
                             <button 
-                                className="clean-icon-btn" 
+                                className="clean-icon-btn action-trigger" 
                                 onClick={(e) => { e.stopPropagation(); fileInputRef.current.click(); }} 
                                 style={{padding: '4px 6px', color: 'var(--accent)'}}
                                 title="Upload Dataset"
@@ -1561,12 +1717,13 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                 zIndex: 10, 
                                 background: 'rgba(20,20,30,0.95)',
                                 borderLeft: '3px solid var(--secondary)',
-                                padding: '12px'
+                                padding: '12px',
+                                justifyContent: 'flex-start'
                             }} 
                             onClick={() => setIsModelsOpen(!isModelsOpen)}
                         >
                             <ChevronRight size={14} style={{transform: isModelsOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', marginRight: 8, color: 'var(--secondary)'}} />
-                            <h3 style={{margin: 0, display: 'flex', alignItems: 'center', fontSize:'0.75rem', letterSpacing:1.5, fontWeight:800}}> MODELS TRAINED</h3>
+                            <h3 style={{margin: 0, display: 'flex', alignItems: 'center', fontSize:'0.75rem', letterSpacing:1.5, fontWeight:800, textAlign: 'left'}}> MODELS TRAINED</h3>
                         </div>
                         {isModelsOpen && (
                             <div className="panel-content" style={{flex: 1, overflowY: 'auto', minHeight: 0}}>
@@ -1619,7 +1776,7 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                                 <button onClick={() => { setReportModel(exp); setModelMenuOpenId(null); }}>
                                                     <Info size={14}/> View Report
                                                 </button>
-                                                <button onClick={() => { downloadReport(exp); setModelMenuOpenId(null); }}>
+                                                <button onClick={() => { handleDownloadModel(exp); setModelMenuOpenId(null); }}>
                                                     <Download size={14}/> Download
                                                 </button>
                                                 <div style={{height:1, background:'rgba(255,255,255,0.05)', margin:'4px 0'}}></div>

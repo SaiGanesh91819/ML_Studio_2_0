@@ -7,7 +7,6 @@ import Dashboard from './components/Dashboard/Dashboard';
 import DatasetsPage from './components/DatasetPage/DatasetsPage';
 import ModelsPage from './components/ModelsPage/ModelsPage';
 import SettingsPage from './components/SettingsPage/SettingsPage';
-import DeploymentsPage from './components/DeploymentsPage/DeploymentsPage';
 import MLArenaPage from './components/MLArena/MLArenaPage';
 import Footer from './components/Footer/Footer';
 import LoginPage from './components/Auth/LoginPage';
@@ -25,7 +24,6 @@ const navItems = [
     { label: 'DASHBOARD', id: 'Dashboard', path: '/dashboard' },
     { label: 'DATASETS', id: 'Datasets', path: '/datasets' },
     { label: 'MODELS', id: 'Models', path: '/models' },
-    { label: 'DEPLOY', id: 'Deployments', path: '/deployments' },
     { label: 'SETTINGS', id: 'Settings', path: '/settings' },
 ];
 
@@ -45,7 +43,6 @@ function AppContent() {
     if (pathname.startsWith('/dashboard')) return 'Dashboard';
     if (pathname.startsWith('/datasets')) return 'Datasets';
     if (pathname.startsWith('/models')) return 'Models';
-    if (pathname.startsWith('/deployments')) return 'Deployments';
     if (pathname.startsWith('/settings')) return 'Settings';
     // Arena is strictly separated now, returning Home as fallback for HUD active state if navigating elsewhere
     return 'Home';
@@ -187,7 +184,7 @@ function AppContent() {
     } 
     
     // 2. Lifecycle: Hide Arena only when NAVIGATING to hub pages
-    const isHubPage = ['/dashboard', '/datasets', '/models', '/deployments', '/settings', '/projects'].includes(currentPath);
+    const isHubPage = ['/dashboard', '/datasets', '/models', '/settings', '/projects'].includes(currentPath);
     const pathChanged = lastPath.current !== currentPath;
     
     if (isArenaVisible && isHubPage && !isProjectUrl && pathChanged) {
@@ -341,6 +338,8 @@ function AppContent() {
             theme="dark" 
             richColors 
             closeButton 
+            expand={true}
+            visibleToasts={5}
             toastOptions={{ 
                 style: { 
                     zIndex: 9999
@@ -426,7 +425,6 @@ function AppContent() {
                                         <Route path="/dashboard" element={<Dashboard />} />
                                         <Route path="/datasets" element={<DatasetsPage />} />
                                         <Route path="/models" element={<ModelsPage />} />
-                                        <Route path="/deployments" element={<DeploymentsPage />} />
                                         <Route path="/settings" element={<SettingsPage />} />
                                         <Route path="*" element={<Navigate to="/" replace />} />
                                     </Routes>
@@ -494,16 +492,16 @@ const TechRingSystem = memo(({ rotationOffset, isHovering }) => {
                 </defs>
                 
                 {/* Outer Rings - Single Group for smoother rotation */}
-                <g style={{ transform: `rotate(${scrollRotation * 0.4}deg)`, transformOrigin: '300px 300px', transition: 'transform 0.1s linear' }}>
+                <g style={{ transform: `rotate(${scrollRotation * 0.4}deg)`, transformOrigin: '300px 300px', willChange: 'transform' }}>
                     <circle cx="300" cy="300" r="270" fill="none" stroke="var(--ring-stroke-1)" strokeWidth="1" strokeDasharray="60 30" className="idle-spin-ccw" />
                     <circle cx="300" cy="300" r="250" fill="none" stroke="var(--ring-stroke-2)" strokeWidth="1" strokeDasharray="10 5" className="idle-spin-cw" />
                 </g>
                 
-                <g style={{ transform: `rotate(${scrollRotation * 0.8}deg)`, transformOrigin: '300px 300px', transition: 'transform 0.1s linear' }}>
+                <g style={{ transform: `rotate(${scrollRotation * 0.8}deg)`, transformOrigin: '300px 300px', willChange: 'transform' }}>
                     <circle cx="300" cy="300" r="210" fill="none" stroke="var(--primary)" strokeWidth="2" strokeDasharray="50 30" opacity="0.3" className="idle-spin-cw" />
                 </g>
 
-                <g style={{ transform: `rotate(${scrollRotation}deg)`, transformOrigin: '300px 300px', transition: 'transform 0.1s linear' }}>
+                <g style={{ transform: `rotate(${scrollRotation}deg)`, transformOrigin: '300px 300px', willChange: 'transform' }}>
                     <path d="M300,100 L300,120 M300,480 L300,500 M100,300 L120,300 M480,300 L500,300" stroke="var(--secondary)" strokeWidth="4" />
                     <circle cx="300" cy="300" r="170" fill="none" stroke="var(--secondary)" strokeWidth="1" strokeDasharray="2 10" className="idle-spin-ccw" />
                 </g>

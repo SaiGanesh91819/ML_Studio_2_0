@@ -41,6 +41,7 @@ class ExperimentSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     metrics = serializers.SerializerMethodField()
     latest_run_id = serializers.SerializerMethodField()
+    model_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Experiment
@@ -58,6 +59,15 @@ class ExperimentSerializer(serializers.ModelSerializer):
     def get_latest_run_id(self, obj):
         latest_run = obj.runs.order_by('-created_at').first()
         return latest_run.id if latest_run else None
+
+    def get_model_url(self, obj):
+        latest_run = obj.runs.order_by('-created_at').first()
+        if latest_run and latest_run.model_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(latest_run.model_file.url)
+            return latest_run.model_file.url
+        return None
 
 class TrainingRunSerializer(serializers.ModelSerializer):
     experiment_name = serializers.ReadOnlyField(source='experiment.name')

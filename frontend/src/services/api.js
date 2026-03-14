@@ -85,6 +85,10 @@ export const authService = {
         return api.patch('auth/update/', data);
     },
 
+    async changePassword(data) {
+        return api.post('auth/change-password/', data);
+    },
+
     isAuthenticated() {
         return !!localStorage.getItem('access_token');
     }

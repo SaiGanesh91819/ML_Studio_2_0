@@ -209,9 +209,9 @@ const ProjectsPage = () => {
         <div className="projects-container" onMouseMove={handleMouseMove}>
             {/* Header and Filter Bar ... same as before */}
              <div className="projects-header">
-                <div className="header-content">
-                    <h1>Welcome, {user?.username}</h1>
-                    <p>Manage and organize your machine learning workspaces</p>
+                <div className="header-content" style={{ textAlign: 'left' }}>
+                    <h1 style={{ textAlign: 'left', marginLeft: 0 }}>Workspaces</h1>
+                    <p style={{ textAlign: 'left' }}>Manage and organize your machine learning projects</p>
                 </div>
                 <button className="create-btn" onClick={(e) => { e.stopPropagation(); setShowCreateModal(true); }}>
                     <Plus size={20} />

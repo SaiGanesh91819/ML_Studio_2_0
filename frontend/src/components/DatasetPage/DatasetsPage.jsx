@@ -1,5 +1,4 @@
-/* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLaunch } from '../../context/LaunchContext.jsx';
 import { datasetService, projectService } from '../../services/api';
@@ -41,7 +40,7 @@ const DatasetsPage = () => {
         fetchInitialData();
     }, []);
 
-    const fetchDatasets = async () => {
+    const fetchDatasets = useCallback(async () => {
         try {
             setLoading(true);
             const params = {
@@ -62,14 +61,14 @@ const DatasetsPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [searchQuery, sortBy, projectFilter, projects]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchDatasets();
         }, 300); // Debounce search
         return () => clearTimeout(timer);
-    }, [searchQuery, projectFilter, sortBy, projects]);
+    }, [fetchDatasets]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
@@ -121,17 +120,17 @@ const DatasetsPage = () => {
         <div className="section-container full-page-table">
             <div className="section-header" style={{flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:40}}>
                 <div style={{textAlign:'left'}}>
-                    <h1>Dataset Explorer</h1>
-                    <p className="subtitle">Manage and explore all your scientific data across workspaces</p>
+                    <h1 style={{ textAlign: 'left', marginLeft: 0 }}>Dataset Explorer</h1>
+                    <p className="subtitle" style={{ textAlign: 'left' }}>Manage and explore all your scientific data across workspaces</p>
                 </div>
                 
                 <div style={{display:'flex', alignItems:'center', gap:30}}>
                     <div className="header-stats" style={{display:'flex', gap:30}}>
-                        <div className="stat-mini">
+                        <div className="stat-mini" style={{ textAlign: 'left' }}>
                             <label style={{fontSize:'0.7rem', textTransform:'uppercase', opacity:0.5, letterSpacing:1}}>Total Records</label>
                             <div style={{fontSize:'1.2rem', fontWeight:700, color:'var(--primary)'}}>{datasets.reduce((sum, d) => sum + (d.row_count || 0), 0).toLocaleString()}</div>
                         </div>
-                        <div className="stat-mini">
+                        <div className="stat-mini" style={{ textAlign: 'left' }}>
                             <label style={{fontSize:'0.7rem', textTransform:'uppercase', opacity:0.5, letterSpacing:1}}>Est. Storage</label>
                             <div style={{fontSize:'1.2rem', fontWeight:700, color:'var(--secondary)'}}>{totalSize} MB</div>
                         </div>
