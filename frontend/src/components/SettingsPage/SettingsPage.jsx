@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { authService } from '../../services/api';
-import { User, Lock, Bell, Palette, Database, Shield, Save, CheckCircle2 } from 'lucide-react';
+import { User, Lock, Bell, Palette, Database, Shield, Save, CheckCircle2, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import '../DatasetPage/DatasetsPage.css';
+import './SettingsPage.css';
 
 const SettingsPage = () => {
     const { tab, username } = useParams();
@@ -12,16 +13,34 @@ const SettingsPage = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     
-    // Profile State
     const [profile, setProfile] = useState({
         username: '',
         email: '',
         display_name: '',
-        bio: 'AI Researcher & Developer building the future of ML tools.'
+        bio: 'AI Researcher & Developer building the future of ML tools.',
+        avatar: localStorage.getItem('user_avatar') || ''
     });
 
+    const [showAvatarModal, setShowAvatarModal] = useState(false);
+    const [selectedAvatar, setSelectedAvatar] = useState(profile.avatar);
+
+    const avatars = [
+        { id: 'robot', url: '/avatars/robot.png' },
+        { id: 'cat', url: '/avatars/cat.png' },
+        { id: 'scientist', url: '/avatars/scientist.png' },
+        { id: 'alien', url: '/avatars/alien.png' },
+        { id: 'dog', url: '/avatars/dog.png' },
+        { id: 'monkey', url: '/avatars/monkey.png' },
+        { id: 'coffee_dev', url: '/avatars/coffee_dev.png' },
+        { id: 'drone', url: '/avatars/drone.png' },
+        { id: 'hamster', url: '/avatars/hamster.png' },
+        { id: 'glitch_bot', url: '/avatars/glitch_bot.png' },
+        { id: 'wizard', url: '/avatars/wizard.png' },
+        { id: 'penguin', url: '/avatars/penguin.png' }
+    ];
+
     // Appearance State
-    const [primaryColor, setPrimaryColor] = useState('#3b82f6');
+    const [primaryColor, setPrimaryColor] = useState(localStorage.getItem('primary_color') || '#8B00FF');
 
     // Notifications State
     const [notifications, setNotifications] = useState({
@@ -124,15 +143,55 @@ const SettingsPage = () => {
                 return (
                     <div className="glass-card" style={{background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.05)', borderRadius:16, padding:32}}>
                         <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '1.2rem'}}>Profile Information</h3>
-                        <div style={{display:'flex', gap:'24px', alignItems:'center', marginBottom:'40px', padding:'20px', background:'rgba(255,255,255,0.02)', borderRadius:12}}>
-                            <div style={{width:'64px', height:'64px', borderRadius:'50%', background:'linear-gradient(135deg, #3b82f6, #8b5cf6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.5rem', fontWeight:'700', color:'white'}}>
-                                {profile.username ? profile.username[0].toUpperCase() : 'U'}
+                        
+                        <div style={{
+                            display:'flex', 
+                            gap:'32px', 
+                            alignItems:'center', 
+                            marginBottom:'40px', 
+                            padding:'24px', 
+                            background:'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)', 
+                            borderRadius:20,
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            position: 'relative',
+                            overflow: 'hidden'
+                        }}>
+                            <div className="profile-avatar-wrapper">
+                                <div className="profile-avatar-glow" style={{ background: 'var(--primary)' }}></div>
+                                {profile.avatar ? (
+                                    <div 
+                                        className="profile-avatar-img"
+                                        style={{ 
+                                            backgroundImage: `url(${avatars.find(a => a.id === profile.avatar)?.url || ''})`,
+                                            backgroundPosition: 'center',
+                                            backgroundSize: 'cover'
+                                        }}
+                                    />
+                                ) : (
+                                    <div className="profile-avatar-img" style={{ background: 'linear-gradient(135deg, var(--primary), #8b5cf6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem', fontWeight:'700', color:'white' }}>
+                                        {profile.username ? profile.username[0].toUpperCase() : 'U'}
+                                    </div>
+                                )}
                             </div>
+
                             <div style={{flex:1}}>
-                                <h4 style={{margin:0, fontSize:'1.1rem'}}>{profile.display_name}</h4>
-                                <p style={{margin:0, fontSize:'0.85rem', color:'var(--text-dim)'}}>@{profile.username}</p>
+                                <h4 style={{margin:'0 0 4px 0', fontSize:'1.25rem', color: 'white'}}>{profile.display_name}</h4>
+                                <p style={{margin:0, fontSize:'0.9rem', color:'var(--text-dim)', letterSpacing: '0.5px'}}>@{profile.username}</p>
                             </div>
-                            <button className="primary-btn" style={{background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', boxShadow:'none'}}>Update Avatar</button>
+
+                            <button 
+                                className="primary-btn" 
+                                onClick={() => setShowAvatarModal(true)}
+                                style={{
+                                    background:'rgba(255,255,255,0.05)', 
+                                    border:'1px solid rgba(255,255,255,0.1)', 
+                                    boxShadow:'none',
+                                    padding: '12px 24px',
+                                    borderRadius: '12px'
+                                }}
+                            >
+                                Update Avatar
+                            </button>
                         </div>
 
                         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:24, marginBottom:24}}>
@@ -161,6 +220,55 @@ const SettingsPage = () => {
                                 {saving ? 'Saving...' : <><Save size={16}/> Save Changes</>}
                             </button>
                         </div>
+
+                        {/* Avatar Picker Modal */}
+                        {showAvatarModal && (
+                            <div className="avatar-selection-modal-overlay">
+                                <div className="avatar-selection-modal">
+                                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
+                                        <h2 style={{margin:0, fontSize:'1.5rem'}}>Select Visual Identity</h2>
+                                        <button onClick={() => setShowAvatarModal(false)} style={{background:'none', border:'none', color:'var(--text-dim)', cursor:'pointer'}}><X size={24}/></button>
+                                    </div>
+                                    <p style={{color:'var(--text-dim)', fontSize:'0.9rem'}}>Choose an avatar that reflects your persona in the ML Arena.</p>
+                                    
+                                    <div className="avatar-carousel-container">
+                                        <button className="carousel-nav-btn prev" onClick={() => {
+                                            document.querySelector('.avatar-carousel').scrollBy({ left: -280, behavior: 'smooth' });
+                                        }}><ChevronLeft size={24}/></button>
+                                        
+                                        <div className="avatar-carousel">
+                                            {avatars.map((av) => (
+                                                <div 
+                                                    key={av.id}
+                                                    className={`avatar-option ${selectedAvatar === av.id ? 'selected' : ''}`}
+                                                    onClick={() => setSelectedAvatar(av.id)}
+                                                    style={{
+                                                        backgroundImage: `url(${av.url})`,
+                                                        backgroundPosition: 'center',
+                                                        backgroundSize: 'cover'
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        <button className="carousel-nav-btn next" onClick={() => {
+                                            document.querySelector('.avatar-carousel').scrollBy({ left: 280, behavior: 'smooth' });
+                                        }}><ChevronRight size={24}/></button>
+                                    </div>
+
+                                    <div style={{display:'flex', justifyContent:'flex-end', gap:15, marginTop:30}}>
+                                        <button className="secondary-btn" onClick={() => setShowAvatarModal(false)} style={{background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', padding:'10px 20px', borderRadius:10, color:'white', cursor:'pointer'}}>Cancel</button>
+                                        <button className="primary-btn" onClick={() => {
+                                            setProfile({...profile, avatar: selectedAvatar});
+                                            localStorage.setItem('user_avatar', selectedAvatar);
+                                            window.dispatchEvent(new Event('avatarUpdate'));
+                                            setShowAvatarModal(false);
+                                            toast.success("Identity updated successfully!");
+                                        }} style={{padding:'10px 30px', borderRadius:10}}>Set Identity</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             
@@ -173,14 +281,12 @@ const SettingsPage = () => {
                         <div style={{marginBottom:32}}>
                             <label style={{display:'block', marginBottom:15, color:'var(--text-dim)', fontSize:'0.9rem'}}>Primary Accent Color</label>
                             <div style={{display:'flex', gap:20}}>
-                                {['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6'].map(c => (
+                                {['#8B00FF', '#10b981', '#ef4444', '#f59e0b', '#3b82f6'].map(c => (
                                     <div 
                                         key={c} 
                                         onClick={() => { 
                                             setPrimaryColor(c); 
                                             document.documentElement.style.setProperty('--primary', c);
-                                            localStorage.setItem('primary_color', c);
-                                            toast.success(`Primary color changed!`); 
                                         }}
                                         style={{width:40, height:40, borderRadius:10, background:c, cursor:'pointer', border:primaryColor === c ? '3px solid white' : 'none', transform: primaryColor === c ? 'scale(1.1)' : 'scale(1)', transition:'all 0.2s', boxShadow: primaryColor === c ? `0 0 15px ${c}` : 'none'}} 
                                     />
@@ -189,7 +295,10 @@ const SettingsPage = () => {
                         </div>
 
                         <div style={{display:'flex', justifyContent:'flex-end', borderTop:'1px solid rgba(255,255,255,0.05)', paddingTop:24}}>
-                            <button className="primary-btn" onClick={() => toast.success("Theme preferences saved")}>Save Appearance</button>
+                            <button className="primary-btn" onClick={() => {
+                                localStorage.setItem('primary_color', primaryColor);
+                                toast.success("Theme preferences saved");
+                            }}>Save Appearance</button>
                         </div>
                     </div>
                 );

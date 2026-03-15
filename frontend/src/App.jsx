@@ -67,16 +67,18 @@ function AppContent() {
   // const prevActiveModule = useRef(activeModule);
 
 
-  // Auth Flow Handling
+  // Auth Flow & Theme Handling
   useEffect(() => {
+    // Apply saved theme
+    const savedColor = localStorage.getItem('primary_color');
+    if (savedColor) {
+        document.documentElement.style.setProperty('--primary', savedColor);
+    }
+
     const checkAuth = () => {
         if (authService.isAuthenticated()) {
             setIsAuthenticated(true);
             setShowPreloader(false);
-        } else {
-             // If not authenticated and not on login page, might need to handle?
-             // But router will handle redirects if we protect routes.
-             // Ideally we'd have ProtectedRoute wrapper.
         }
     };
     checkAuth();
