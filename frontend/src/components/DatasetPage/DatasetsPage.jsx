@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useLaunch } from '../../context/LaunchContext.jsx';
 import { datasetService, projectService } from '../../services/api';
 import { 
@@ -18,6 +18,7 @@ import Dialog from '../shared/Modal/Dialog';
 import './DatasetsPage.css';
 
 const DatasetsPage = () => {
+    const { datasetId } = useParams();
     const navigate = useNavigate();
     const { enterArenaWithProject } = useLaunch();
     const [datasets, setDatasets] = useState([]);
@@ -68,7 +69,7 @@ const DatasetsPage = () => {
             fetchDatasets();
         }, 300); // Debounce search
         return () => clearTimeout(timer);
-    }, [fetchDatasets]);
+    }, [fetchDatasets, datasetId]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
@@ -96,16 +97,16 @@ const DatasetsPage = () => {
             }
         });
     };
-
     const handleOpenInArena = (dataset) => {
         const project = projects.find(p => p.id === dataset.project);
         if (project) {
             enterArenaWithProject({
                 id: project.id,
+                uuid: project.uuid,
                 title: project.name,
                 type: project.domain
             });
-            navigate(`/projects/${project.id}/train`);
+            navigate(`/projects/${project.uuid || project.id}/train`);
         }
     };
 

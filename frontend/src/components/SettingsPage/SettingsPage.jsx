@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { authService } from '../../services/api';
 import { User, Lock, Bell, Palette, Database, Shield, Save, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import '../DatasetPage/DatasetsPage.css';
 
 const SettingsPage = () => {
-    const [activeTab, setActiveTab] = useState('Profile');
+    const { tab, username } = useParams();
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState(tab ? tab.charAt(0).toUpperCase() + tab.slice(1) : (username ? 'Profile' : 'Profile'));
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     
@@ -18,7 +21,6 @@ const SettingsPage = () => {
     });
 
     // Appearance State
-    const [theme, setTheme] = useState('Dark');
     const [primaryColor, setPrimaryColor] = useState('#3b82f6');
 
     // Notifications State
@@ -35,6 +37,14 @@ const SettingsPage = () => {
         new: '',
         confirm: ''
     });
+
+    useEffect(() => {
+        if (tab) {
+            setActiveTab(tab.charAt(0).toUpperCase() + tab.slice(1));
+        } else if (username) {
+            setActiveTab('Profile');
+        }
+    }, [tab, username]);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -158,30 +168,7 @@ const SettingsPage = () => {
                 return (
                     <div className="glass-card" style={{background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.05)', borderRadius:16, padding:32}}>
                         <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '1.2rem'}}>Visual Preferences</h3>
-                        <div style={{marginBottom:32}}>
-                            <label style={{display:'block', marginBottom:15, color:'var(--text-dim)', fontSize:'0.9rem'}}>Interface Theme</label>
-                            <div style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:15}}>
-                                {['Light', 'Dark', 'System'].map(t => (
-                                    <div 
-                                        key={t} 
-                                        onClick={() => {
-                                            setTheme(t);
-                                            document.documentElement.setAttribute('data-theme', t.toLowerCase());
-                                            localStorage.setItem('theme_mode', t.toLowerCase());
-                                            toast.success(`Theme switched to ${t}`);
-                                        }}
-                                        style={{
-                                            padding:20, borderRadius:12, border:`1px solid ${theme === t ? 'var(--primary)' : 'rgba(255,255,255,0.05)'}`,
-                                            background: theme === t ? 'rgba(59, 130, 246, 0.1)' : 'rgba(0,0,0,0.2)',
-                                            textAlign:'center', cursor:'pointer', transition:'all 0.2s',
-                                            color: theme === t ? 'white' : 'rgba(255,255,255,0.5)'
-                                        }}
-                                    >
-                                        {t}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        
 
                         <div style={{marginBottom:32}}>
                             <label style={{display:'block', marginBottom:15, color:'var(--text-dim)', fontSize:'0.9rem'}}>Primary Accent Color</label>
@@ -293,7 +280,7 @@ const SettingsPage = () => {
                     {navItems.map(item => (
                         <div 
                             key={item.id}
-                            onClick={() => setActiveTab(item.id)}
+                            onClick={() => navigate(`/settings/${item.id.toLowerCase()}`)}
                             className={`settings-item ${activeTab === item.id ? 'active' : ''}`} 
                             style={{ 
                                 padding: '12px 16px', 

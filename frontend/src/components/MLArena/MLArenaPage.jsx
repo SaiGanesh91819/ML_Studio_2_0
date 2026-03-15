@@ -80,6 +80,14 @@ const MLArenaPage = () => {
                 setModelConfig({ random_state: 42 });
             }        }
     }, [selectedAlgo, activeDataset, activeProject?.settings?.manual_override]);
+
+    // Data Integrity: Ensure target is never in features
+    useEffect(() => {
+        if (targetCol && featureCols.includes(targetCol)) {
+            setFeatureCols(prev => prev.filter(f => f !== targetCol));
+        }
+    }, [targetCol, featureCols]);
+
     const [isLoadingBarActive, setIsLoadingBarActive] = useState(false);
     const [isDatasetsOpen, setIsDatasetsOpen] = useState(true);
     const [isModelsOpen, setIsModelsOpen] = useState(true);
@@ -235,9 +243,9 @@ const MLArenaPage = () => {
     }, [availableProjects, searchQuery]);
 
     const handleProjectClick = (p) => {
-        const mapped = { id: p.id, title: p.name, type: p.domain };
+        const mapped = { id: p.id, uuid: p.uuid, title: p.name, type: p.domain };
         enterArenaWithProject(mapped);
-        navigate(`/projects/${p.id}`);
+        navigate(`/projects/${p.uuid || p.id}`);
     };
 
     const handleCloseProject = () => {
@@ -1540,7 +1548,10 @@ ${JSON.stringify(model.config || {}, null, 2)}
                         <Folder size={14} />
                         <span>Projects</span>
                         <ChevronRight size={12} />
-                        <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{activeProject.title || activeProject.name}</span>
+                        <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>
+                            {activeProject.title || activeProject.name}
+                            <span style={{ fontSize: '0.7rem', opacity: 0.4, marginLeft: '8px', fontWeight: 400 }}>#{activeProject.id}</span>
+                        </span>
                     </div>
                 </div>
 
@@ -1559,7 +1570,7 @@ ${JSON.stringify(model.config || {}, null, 2)}
                                 onClick={() => {
                                     if (tab.id === 'preprocess') { setShowPreprocessing(true); setShowCorrelation(false); }
                                     else if (tab.id === 'correlation') handleCorrelation();
-                                    else { navigate(`/projects/${activeProject.id}/train`); setShowPreprocessing(false); setShowCorrelation(false); }
+                                    else { navigate(`/projects/${activeProject.uuid}/train`); setShowPreprocessing(false); setShowCorrelation(false); }
                                 }}
                                 style={{
                                     display: 'flex',

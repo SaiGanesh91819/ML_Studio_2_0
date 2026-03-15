@@ -164,14 +164,23 @@ function AppContent() {
 
     // 1. Sync Project from URL
     if (isProjectUrl && urlProjectId) {
-        console.log("Arena URL Sync:", { urlProjectId, currentProject: activeProject?.id });
-        if (!activeProject || activeProject.id.toString() !== urlProjectId) {
+        // Handle slugged IDs or UUIDs. UUIDs are 36 chars.
+        // We'll look for a project that matches either the full segment or the first part
+        console.log("Arena URL Sync:", { urlProjectId, currentProjectUuid: activeProject?.uuid });
+        
+        if (!activeProject || (activeProject.uuid !== urlProjectId && activeProject.id.toString() !== urlProjectId)) {
             const fetchAndLaunchProject = async () => {
                 try {
                     const res = await projectService.getProjects();
-                    const project = res.data.find(p => p.id.toString() === urlProjectId);
+                    // Match by UUID or ID (fallback)
+                    const project = res.data.find(p => p.uuid === urlProjectId || p.id.toString() === urlProjectId);
                     if (project) {
-                        enterArenaWithProject({ id: project.id, title: project.name, type: project.domain });
+                        enterArenaWithProject({ 
+                            id: project.id, 
+                            uuid: project.uuid,
+                            title: project.name, 
+                            type: project.domain 
+                        });
                     }
                 } catch (error) {
                     console.error("Arena URL Sync Error:", error);
@@ -423,9 +432,16 @@ function AppContent() {
                                         <Route path="/projects" element={<ProjectsPage />} />
                                         <Route path="/projects/:projectId/*" element={<ProjectsPage />} />
                                         <Route path="/dashboard" element={<Dashboard />} />
-                                        <Route path="/datasets" element={<DatasetsPage />} />
-                                        <Route path="/models" element={<ModelsPage />} />
-                                        <Route path="/settings" element={<SettingsPage />} />
+                                        <Route path="/datasets" element={<DatasetsPage />}>
+                                            <Route path=":datasetId" element={<DatasetsPage />} />
+                                        </Route>
+                                        <Route path="/models" element={<ModelsPage />}>
+                                            <Route path=":runId" element={<ModelsPage />} />
+                                        </Route>
+                                        <Route path="/settings" element={<SettingsPage />}>
+                                            <Route path=":tab" element={<SettingsPage />} />
+                                        </Route>
+                                        <Route path="/u/:username" element={<SettingsPage />} /> {/* Profile fallback */}
                                         <Route path="*" element={<Navigate to="/" replace />} />
                                     </Routes>
                                 </div>

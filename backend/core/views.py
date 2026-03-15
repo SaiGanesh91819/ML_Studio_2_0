@@ -731,8 +731,8 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
             
             # Simple automatic missing value handling for target & features
             df = df.dropna(subset=[target_col])
-            # Ensure feature columns exist
-            feature_cols = [c for c in feature_cols if c in df.columns]
+            # Ensure feature columns exist and don't include target (Leakage Protection)
+            feature_cols = [c for c in feature_cols if c in df.columns and c != target_col]
             
             X = df[feature_cols].copy()
             y = df[target_col].copy()

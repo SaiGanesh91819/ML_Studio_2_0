@@ -188,7 +188,7 @@ const ProjectsPage = () => {
 
     const handleCardClick = (project) => {
         if (activeMenu) { setActiveMenu(null); return; } 
-        navigate(`/projects/${project.id}`);
+        navigate(`/projects/${project.uuid || project.id}`);
     };
     const handleMouseMove = (e) => {
         for(const card of document.getElementsByClassName("project-card")) {
@@ -308,15 +308,17 @@ const ProjectsPage = () => {
                     </div>
                 ))}
 
-                {/* New Workspace Placeholder Card */}
-                <div className="project-card" onClick={(e) => { e.stopPropagation(); setShowCreateModal(true); }} style={{ borderStyle: 'dashed', background: 'transparent' }}>
-                     <div className="card-content" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '180px' }}>
-                        <div className="project-icon" style={{ background: 'rgba(255,255,255,0.05)', marginBottom: '16px' }}>
-                            <Plus size={24} />
+                {/* New Workspace Placeholder Card - Only shown in 'All' tab */}
+                {activeFilter === 'All' && (
+                    <div className="project-card" onClick={(e) => { e.stopPropagation(); setShowCreateModal(true); }} style={{ borderStyle: 'dashed', background: 'transparent' }}>
+                        <div className="card-content" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '180px' }}>
+                            <div className="project-icon" style={{ background: 'rgba(255,255,255,0.05)', marginBottom: '16px' }}>
+                                <Plus size={24} />
+                            </div>
+                            <h3 className="project-title" style={{ fontSize: '1rem' }}>Create Workspace</h3>
                         </div>
-                        <h3 className="project-title" style={{ fontSize: '1rem' }}>Create Workspace</h3>
-                     </div>
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Modals */}

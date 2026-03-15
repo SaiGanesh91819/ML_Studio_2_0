@@ -8,7 +8,7 @@ class DatasetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dataset
         fields = '__all__'
-        read_only_fields = ('project', 'uploaded_at', 'columns', 'row_count')
+        read_only_fields = ('project', 'uploaded_at', 'columns', 'row_count', 'uuid')
 
     file_size = serializers.SerializerMethodField()
     download_url = serializers.SerializerMethodField()
@@ -46,7 +46,7 @@ class ExperimentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Experiment
         fields = '__all__'
-        read_only_fields = ('created_at', 'updated_at')
+        read_only_fields = ('created_at', 'updated_at', 'uuid')
 
     def get_status(self, obj):
         latest_run = obj.runs.order_by('-created_at').first()
@@ -76,7 +76,7 @@ class TrainingRunSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingRun
         fields = '__all__'
-        read_only_fields = ('started_at', 'completed_at', 'logs', 'metrics', 'model_file')
+        read_only_fields = ('started_at', 'completed_at', 'logs', 'metrics', 'model_file', 'uuid')
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -132,6 +132,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = '__all__'
+        read_only_fields = ('uuid',)
 
     def validate_dataset_file(self, value):
         limit_mb = 10

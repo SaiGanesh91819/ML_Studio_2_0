@@ -1,7 +1,9 @@
+import uuid
 from django.db import models
 from django.contrib.auth.models import User
 
 class Project(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     STATUS_CHOICES = [
         ('Active', 'Active'),
         ('Archived', 'Archived'),
@@ -47,6 +49,7 @@ def model_upload_path(instance, filename):
     return f'models/run_{instance.id}/{filename}'
 
 class Dataset(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='datasets')
     name = models.CharField(max_length=255)
     file = models.FileField(upload_to=dataset_upload_path)
@@ -77,6 +80,7 @@ class Experiment(models.Model):
         return self.name
 
 class TrainingRun(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     STATUS_CHOICES = [
         ('Queued', 'Queued'),
         ('Running', 'Running'),

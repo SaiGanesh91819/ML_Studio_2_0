@@ -1,12 +1,13 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useLaunch } from '../../context/LaunchContext.jsx';
 import { trainingService, experimentService, projectService } from '../../services/api';
 import { Box, Download, PlayCircle, BarChart2, CheckCircle2, XCircle, Search, Folder } from 'lucide-react';
 import '../DatasetPage/DatasetsPage.css'; // Shared Liquid Theme
 
 const ModelsPage = () => {
+    const { runId } = useParams();
     const navigate = useNavigate();
     const [runs, setRuns] = useState([]);
     const [projects, setProjects] = useState([]);
@@ -55,7 +56,7 @@ const ModelsPage = () => {
             fetchRuns();
         }, 300);
         return () => clearTimeout(timer);
-    }, [fetchRuns]);
+    }, [fetchRuns, runId]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
