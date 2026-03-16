@@ -771,8 +771,24 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
                 
             X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=train_split, random_state=42)
             
-            # 2. Initialize Model
-            run.logs += f"[System] Training model {model_name} with parameters...\n"
+            # 2. Validation: Check if model type matches target data type
+            run.logs += "[System] Validating model compatibility with target data...\n"
+            unique_targets = np.unique(y)
+            n_unique = len(unique_targets)
+            is_target_continuous = not pd.api.types.is_integer_dtype(y) and not pd.api.types.is_object_dtype(y) and n_unique > 20
+            
+            run.logs += f"[System] Target unique values: {n_unique}, Continuous: {is_target_continuous}\n"
+            run.save()
+
+            if is_classification and is_target_continuous:
+                raise ValueError(f"Training Failed: The selected model ({model_name}) is a classifier, but the target column '{target_col}' appears to be continuous (regression). Please select a regression model or check your dataset.")
+
+            if not is_classification and not is_target_continuous and n_unique < 5:
+                 run.logs += "[Warning] You are using a regression model on a target with very few unique values. A classifier might be more appropriate.\n"
+                 run.save()
+
+            # 3. Initialize Model
+            run.logs += f"[System] Initializing model {model_name} with parameters...\n"
             run.save()
             
             if model_name == 'linear_regression':
@@ -785,7 +801,8 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
                 m_dep = params.get('max_depth', None)
                 m_dep = int(m_dep) if m_dep else None
                 
-                if is_classification or len(np.unique(y)) < 20: 
+                # If specifically requested classification or if it looks like one
+                if is_classification or n_unique < 20: 
                     model = RandomForestClassifier(n_estimators=n_ext, max_depth=m_dep)
                 else:
                     model = RandomForestRegressor(n_estimators=n_ext, max_depth=m_dep)
@@ -796,24 +813,25 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
             else:
                 raise ValueError(f"Model type '{model_name}' is not supported.")
                 
-            # 3. Train
+            # 4. Train
+            run.logs += "[System] Fitting model to training data...\n"
+            run.save()
             model.fit(X_train, y_train)
+            
+            # 5. Evaluate
             run.logs += "[System] Training complete! Evaluating model...\n"
             run.save()
             
-            # 4. Evaluate
-            if isinstance(model, (LogisticRegression, RandomForestClassifier, SVC)):
-                y_pred = model.predict(X_test)
+            y_pred = model.predict(X_test)
+            
+            if is_classification:
                 accuracy = accuracy_score(y_test, y_pred)
-                
-                # Use 'weighted' for multiclass support
                 precision = precision_score(y_test, y_pred, average='weighted', zero_division=0)
                 recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
                 f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
-                
                 cm = confusion_matrix(y_test, y_pred)
                 
-                metrics = {
+                metrics_data = {
                     "accuracy": float(accuracy),
                     "precision": float(precision),
                     "recall": float(recall),
@@ -824,13 +842,12 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
                 run.logs += f"[Metrics] Accuracy: {accuracy:.4f}\n"
                 run.logs += f"[Metrics] F1 Score: {f1:.4f}\n"
             else:
-                y_pred = model.predict(X_test)
                 mse = mean_squared_error(y_test, y_pred)
                 rmse = np.sqrt(mse)
                 mae = mean_absolute_error(y_test, y_pred)
                 r2 = r2_score(y_test, y_pred)
                 
-                metrics = {
+                metrics_data = {
                     "mse": float(mse),
                     "rmse": float(rmse),
                     "mae": float(mae),
@@ -841,7 +858,7 @@ class TrainingRunViewSet(viewsets.ModelViewSet):
             # Merge new metrics with existing (like categorical_mappings)
             if not isinstance(run.metrics, dict):
                 run.metrics = {}
-            run.metrics.update(metrics)
+            run.metrics.update(metrics_data)
             # Explicitly mark for saving to avoid JSONField update issues in some versions
             run.metrics = dict(run.metrics) 
             
