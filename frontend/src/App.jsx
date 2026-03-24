@@ -19,7 +19,7 @@ import { authService, projectService } from './services/api';
 import './index.css';
 
 const navItems = [
-    { label: 'HOME', id: 'Home', path: '/' },
+    { label: 'HOME', id: 'Home', path: '/home' },
     { label: 'PROJECTS', id: 'Projects', path: '/projects' },
     { label: 'DASHBOARD', id: 'Dashboard', path: '/dashboard' },
     { label: 'DATASETS', id: 'Datasets', path: '/datasets' },

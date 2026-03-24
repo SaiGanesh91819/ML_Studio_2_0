@@ -28,30 +28,45 @@
 .user-profile-pill {
     display: flex;
     align-items: center;
-    gap: 10px;
-    background: var(--input-bg);
-    padding: 5px 5px 5px 12px;
-    border-radius: 30px;
-    border: 1px solid var(--border-color);
-    backdrop-filter: blur(10px);
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 4px 12px 4px 4px;
+    border-radius: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.user-profile-pill:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
 }
 
 .avatar-circle {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: var(--primary);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
 }
 
 .username-text {
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 0.85rem;
+    font-weight: 600;
     color: var(--text-main);
-    margin-right: 5px;
+    letter-spacing: 0.3px;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .logout-btn-mini {
