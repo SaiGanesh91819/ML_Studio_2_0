@@ -50,3 +50,11 @@ dist-ssr/
 # OS
 .DS_Store
 Thumbs.db
+
+backend/venv/
+.vscode/
+backend/core/migrations/
+backend/core/__pycache__/
+backend/core/migrations/__pycache__/
+backend/core/migrations/versions/
+backend/core/migrations/versions/__pycache__/
